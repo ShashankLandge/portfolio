@@ -318,16 +318,21 @@
 
     // Switch back to English after 2 seconds
     setTimeout(() => {
+      marathiName.classList.add('glitch');
+    }, 2300);
+    
+    setTimeout(() => {
       marathiName.style.opacity = '0';
       englishName.style.opacity = '1';
-    }, 2300);
+      marathiName.classList.remove('glitch');
+    }, 300);
   }
 
   // Start the first flicker after page load
-  setTimeout(flickerEffect, 2000);
+  setTimeout(flickerEffect, 3000);
 
   // Repeat the effect every 8 seconds
-  setInterval(flickerEffect, 8000);
+  setInterval(flickerEffect, 9000);
 </script>
 </body>
 </html>
