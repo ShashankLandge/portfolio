@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shark Cursor</title>
+  <style>
+    @font-face {
+      font-family: 'Khand';
+      src: url('src/assets/Khand/Khand-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      height: 100%;
+      cursor: none;
+    }
+    canvas {
+      display: block;
+    }
+
+    .frame {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: calc(100vw - 80px);
+      height: calc(100vh - 80px);
+      margin: 40px;
+      box-sizing: border-box;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      pointer-events: none;
+      font-family: 'Courier New', monospace;
+      color: white;
+    }
+
+    .frame-left {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      text-align: left;
+    }
+
+
+    .name {
+      font-size: 2.1rem;
+      font-weight: normal;
+      margin-bottom: 1.4rem;
+      pointer-events: auto;
+      position: relative;
+      height: 2rem;
+      overflow: visible;
+    }
+
+    .name-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: opacity 0.1s ease;
+      white-space: nowrap;
+    }
+
+    .name-english {
+      font-family: "EB_Garamond", serif;
+      opacity: 1;
+    }
+
+    .name-marathi {
+      font-family: 'Khand', sans-serif;
+      opacity: 0;
+      font-size: 2.1rem;
+    }
+
+    .glitch {
+      animation: glitch 0.3s ease-in-out;
+    }
+
+    @keyframes glitch {
+      0% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      10% {
+        opacity: 0.8;
+        transform: translateX(-2px);
+      }
+      20% {
+        opacity: 0.3;
+        transform: translateX(2px);
+      }
+      30% {
+        opacity: 0.9;
+        transform: translateX(-1px);
+      }
+      40% {
+        opacity: 0.1;
+        transform: translateX(1px);
+      }
+      50% {
+        opacity: 0.7;
+        transform: translateX(-2px);
+      }
+      60% {
+        opacity: 0.2;
+        transform: translateX(2px);
+      }
+      70% {
+        opacity: 0.9;
+        transform: translateX(-1px);
+      }
+      80% {
+        opacity: 0.4;
+        transform: translateX(1px);
+      }
+      90% {
+        opacity: 0.8;
+        transform: translateX(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(0);
+      }
+    }
+
+    .menu a {
+      display: block;
+      margin-bottom: 0.5rem;
+      text-decoration: none;
+      color: white;
+      font-family: "EB_Garamond", serif;
+      font-size: 1.2rem;
+      font-weight: normal;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      pointer-events: auto;
+    }
+    .menu a:hover {
+      opacity: 1;
+    }
+
+    body, button, a, canvas {
+      cursor: none !important;
+    }
+  </style>
+</head>
+
+<body>
+<canvas id="fishCanvas"></canvas>
+
+<div class="frame">
+  <div class="frame-left">
+    <div class="name">
+      <div class="name-text name-english" id="englishName">Shashank Landge</div>
+      <div class="name-text name-marathi" id="marathiName">शशांक लांडगे</div>
+    </div>
+    <nav class="menu">
+      <a href="cloud_parting.html">Home</a>
+      <a href="dual_shark.html">Projects</a>
+      <a href="single_shark.html">Contact</a>
+    </nav>
+  </div>
+</div>
+
+<script>
+  const englishName = document.getElementById('englishName');
+  const marathiName = document.getElementById('marathiName');
+
+  function flickerEffect() {
+    // Start the glitch animation on English text
+    englishName.classList.add('glitch');
+
+    // After glitch animation completes, switch to Marathi
+    setTimeout(() => {
+      englishName.style.opacity = '0';
+      marathiName.style.opacity = '1';
+      englishName.classList.remove('glitch');
+    }, 300);
+
+    // Switch back to English after 2 seconds
+    setTimeout(() => {
+      marathiName.style.opacity = '0';
+      englishName.style.opacity = '1';
+    }, 2300);
+  }
+
+  // Start the first flicker after page load
+  setTimeout(flickerEffect, 2000);
+
+  // Repeat the effect every 8 seconds
+  setInterval(flickerEffect, 8000);
+</script>
+
+<script src="src/js/single_shark.js"></script>
+</body>
+
+</html>

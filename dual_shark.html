@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dual Shark Cursor</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      height: 100%;
+      cursor: none;
+    }
+    canvas {
+      display: block;
+    }
+
+    .frame {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: calc(100vw - 80px);
+      height: calc(100vh - 80px);
+      margin: 40px;
+      box-sizing: border-box;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      pointer-events: none;
+      font-family: 'Courier New', monospace;
+      color: white;
+    }
+
+
+    .frame-left {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      text-align: left;
+    }
+
+
+    .name {
+      font-family: "EB_Garamond", serif;
+      font-size: 2.1rem;
+      font-weight: normal;
+      margin-bottom: 1rem;
+      pointer-events: auto;
+    }
+
+    .menu a {
+      display: block;
+      margin-bottom: 0.5rem;
+      text-decoration: none;
+      color: white;
+      font-family: "EB_Garamond", serif;
+      font-size: 1.2rem;
+      font-weight: normal;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      pointer-events: auto;
+    }
+    .menu a:hover {
+      opacity: 1;
+    }
+
+    body, button, a, canvas {
+      cursor: none !important;
+    }
+
+  </style>
+</head>
+<body>
+<canvas id="fishCanvas"></canvas>
+
+<div class="frame">
+  <div class="frame-left">
+    <div class="name">Shashank Landge</div>
+    <nav class="menu">
+      <a href="cloud_parting.html">Home</a>
+      <a href="dual_shark.html">Projects</a>
+      <a href="single_shark.html">Contact</a>
+    </nav>
+  </div>
+</div>
+
+<script src="src/js/dual_shark.js"></script>
+</body>
+</html>
