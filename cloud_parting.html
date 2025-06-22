@@ -1,265 +1,288 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shark Swimming Through Clouds</title>
     <style>
-        @font-face {
-            font-family: 'Khand';
-            src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/Khand-Regular.ttf?v=1750623448034') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
+      @font-face {
+        font-family: "Khand";
+        src: url("https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/Khand-Regular.ttf?v=1750623448034")
+          format("truetype");
+        font-weight: normal;
+        font-style: normal;
+      }
 
-        @font-face {
-            font-family: 'JetBrains_Mono';
-            src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/JetBrainsMono-Regular.ttf?v=1750623439122') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            cursor: none;
-        }
+      @font-face {
+        font-family: "JetBrains_Mono";
+        src: url("https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/JetBrainsMono-Regular.ttf?v=1750623439122")
+          format("truetype");
+        font-weight: normal;
+        font-style: normal;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        height: 100%;
+        cursor: none;
+      }
 
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: block;
-            pointer-events: none; /* Ensures canvas doesn't block UI */
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        pointer-events: none; /* Ensures canvas doesn't block UI */
+      }
+
+      #cloudCanvas {
+        z-index: 0;
+      }
+
+      #sharkCanvas {
+        z-index: 1;
+      }
+
+      .frame {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: calc(100vw - 80px);
+        height: calc(100vh - 80px);
+        margin: 40px;
+        box-sizing: border-box;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        pointer-events: none;
+        font-family: "Courier New", monospace;
+        color: white;
+        z-index: 2; /* Make sure it's above the canvases */
+      }
+
+      .frame-left {
+        position: absolute;
+        top: 40px;
+        left: 40px;
+        text-align: left;
+      }
+
+      .frame-bottom-right {
+        position: absolute;
+        right: 40px;
+        bottom: 40px;
+        text-align: right;
+        font-family: "JetBrains_Mono", serif;
+        font-size: 1.2rem;
+        font-weight: normal;
+        max-width: 200px;
+        opacity: 0.7;
+        line-height: 1.4;
+      }
+
+      .name {
+        font-size: 2.1rem;
+        font-weight: normal;
+        margin-bottom: 0.6rem;
+        pointer-events: auto;
+        position: relative;
+        height: 2rem;
+        overflow: visible;
+      }
+
+      .name-text {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transition: opacity 0.1s ease;
+        white-space: nowrap;
+      }
+
+      .name-english {
+        font-family: "JetBrains_Mono", serif;
+        opacity: 1;
+      }
+
+      .name-marathi {
+        font-family: "Khand", sans-serif;
+        opacity: 0;
+        font-size: 2.1rem;
+      }
+
+      .title {
+        font-family: "JetBrains_Mono", serif;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 2.1rem;
+        letter-spacing: 0.5px;
+      }
+
+      .glitch {
+        animation: glitch 0.3s ease-in-out;
+      }
+
+      @keyframes glitch {
+        0% {
+          opacity: 1;
+          transform: translateX(0);
         }
-
-        #cloudCanvas {
-            z-index: 0;
+        10% {
+          opacity: 0.8;
+          transform: translateX(-2px);
         }
-
-        #sharkCanvas {
-            z-index: 1;
+        20% {
+          opacity: 0.3;
+          transform: translateX(2px);
         }
-
-        .frame {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: calc(100vw - 80px);
-            height: calc(100vh - 80px);
-            margin: 40px;
-            box-sizing: border-box;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            pointer-events: none;
-            font-family: 'Courier New', monospace;
-            color: white;
-            z-index: 2; /* Make sure it's above the canvases */
+        30% {
+          opacity: 0.9;
+          transform: translateX(-1px);
         }
-
-
-        .frame-left {
-            position: absolute;
-            top: 40px;
-            left: 40px;
-            text-align: left;
+        40% {
+          opacity: 0.1;
+          transform: translateX(1px);
         }
-
-        .frame-bottom-right {
-            position: absolute;
-            right: 40px;
-            bottom: 40px;
-            text-align: right;
-            font-family: "JetBrains_Mono", serif;
-            font-size: 1.2rem;
-            font-weight: normal;
-            max-width: 200px;
-            opacity: 0.7;
-            line-height: 1.4;
+        50% {
+          opacity: 0.7;
+          transform: translateX(-2px);
         }
-
-
-        .name {
-            font-size: 2.1rem;
-            font-weight: normal;
-            margin-bottom: 0.6rem;
-            pointer-events: auto;
-            position: relative;
-            height: 2rem;
-            overflow: visible;
+        60% {
+          opacity: 0.2;
+          transform: translateX(2px);
         }
-
-        .name-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            transition: opacity 0.1s ease;
-            white-space: nowrap;
+        70% {
+          opacity: 0.9;
+          transform: translateX(-1px);
         }
-
-        .name-english {
-            font-family: "JetBrains_Mono", serif;
-            opacity: 1;
+        80% {
+          opacity: 0.4;
+          transform: translateX(1px);
         }
-
-        .name-marathi {
-            font-family: 'Khand', sans-serif;
-            opacity: 0;
-            font-size: 2.1rem;
+        90% {
+          opacity: 0.8;
+          transform: translateX(0);
         }
-
-        .title {
-            font-family: "JetBrains_Mono", serif;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 2.1rem;
-            letter-spacing: 0.5px;
+        100% {
+          opacity: 0;
+          transform: translateX(0);
         }
+      }
 
-        .glitch {
-            animation: glitch 0.3s ease-in-out;
-        }
+      .menu a {
+        display: block;
+        margin-bottom: 0.5rem;
+        text-decoration: none;
+        color: white;
+        font-family: "JetBrains_Mono", serif;
+        font-size: 1.2rem;
+        font-weight: normal;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+        pointer-events: auto;
+      }
 
-        @keyframes glitch {
-            0% {
-                opacity: 1;
-                transform: translateX(0);
-            }
-            10% {
-                opacity: 0.8;
-                transform: translateX(-2px);
-            }
-            20% {
-                opacity: 0.3;
-                transform: translateX(2px);
-            }
-            30% {
-                opacity: 0.9;
-                transform: translateX(-1px);
-            }
-            40% {
-                opacity: 0.1;
-                transform: translateX(1px);
-            }
-            50% {
-                opacity: 0.7;
-                transform: translateX(-2px);
-            }
-            60% {
-                opacity: 0.2;
-                transform: translateX(2px);
-            }
-            70% {
-                opacity: 0.9;
-                transform: translateX(-1px);
-            }
-            80% {
-                opacity: 0.4;
-                transform: translateX(1px);
-            }
-            90% {
-                opacity: 0.8;
-                transform: translateX(0);
-            }
-            100% {
-                opacity: 0;
-                transform: translateX(0);
-            }
-        }
+      .menu a.current {
+        font-size: 1.5rem;
+        line-height: 1rem;
+        position: relative;
+      }
 
-        .menu a {
-            display: block;
-            margin-bottom: 0.5rem;
-            text-decoration: none;
-            color: white;
-            font-family: "JetBrains_Mono", serif;
-            font-size: 1.2rem;
-            font-weight: normal;
-            opacity: 0.8;
-            transition: opacity 0.2s;
-            pointer-events: auto;
-        }
+      .menu a:hover {
+        opacity: 1;
+      }
 
-        .menu a.current {
-            font-size: 1.5rem;
-            line-height: 1rem;
-            position: relative;
-        }
+      .frame a,
+      .name {
+        pointer-events: auto;
+      }
 
-        .menu a:hover {
-            opacity: 1;
-        }
-
-        .frame a, .name {
-            pointer-events: auto;
-        }
-
-        body, button, a, canvas {
-            cursor: none !important;
-        }
+      body,
+      button,
+      a,
+      canvas {
+        cursor: none !important;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <canvas id="cloudCanvas"></canvas>
     <canvas id="sharkCanvas"></canvas>
 
     <div class="frame">
-        <div class="frame-left">
-            <div class="name">
-                <div class="name-text name-english" id="englishName">Shashank Landge</div>
-                <div class="name-text name-marathi" id="marathiName">शशांक लांडगे</div>
-            </div>
-            <div class="title">Engineer.</div>
-            <nav class="menu">
-                <a href="cloud_parting.html" class="current">.</a>
-                <a href="dual_shark.html">Projects</a>
-                <a href="single_shark.html">Contact</a>
-            </nav>
+      <div class="frame-left">
+        <div class="name">
+          <div class="name-text name-english" id="englishName">
+            Shashank Landge
+          </div>
+          <div class="name-text name-marathi" id="marathiName">
+            शशांक लांडगे
+          </div>
         </div>
-        <div class="frame-bottom-right">
-            <p>
-                Born in 2003<br />
-                in Maharashtra, India.<br />
-                I explore logic,<br />
-                code, and learning.<br />
-                Pursuing clarity<br />
-                through algorithms,<br />
-                and simplicity.
-            </p>
-        </div>
+        <div class="title">Engineer.</div>
+        <nav class="menu">
+          <a href="cloud_parting.html" class="current">.</a>
+          <a href="dual_shark.html">Projects</a>
+          <a href="single_shark.html">Contact</a>
+        </nav>
+      </div>
+      <div class="frame-bottom-right">
+        <p>
+          Born in 2003<br />
+          in Maharashtra, India.<br />
+          I explore logic,<br />
+          code, and learning.<br />
+          Pursuing clarity<br />
+          through algorithms,<br />
+          and simplicity.
+        </p>
+      </div>
     </div>
 
     <script src="src/js/cloud_parting.js"></script>
     <script>
-        const englishName = document.getElementById('englishName');
-        const marathiName = document.getElementById('marathiName');
+      const englishName = document.getElementById("englishName");
+      const marathiName = document.getElementById("marathiName");
 
-        function flickerEffect() {
-            // Start the glitch animation on English text
-            englishName.classList.add('glitch');
+      function flickerEffect() {
+        // Start glitch on English
+        englishName.classList.add("glitch");
 
-            // After glitch animation completes, switch to Marathi
-            setTimeout(() => {
-                englishName.style.opacity = '0';
-                marathiName.style.opacity = '1';
-                englishName.classList.remove('glitch');
-            }, 300);
+        // Switch to Marathi after glitch
+        setTimeout(() => {
+          englishName.style.opacity = "0";
+          marathiName.style.opacity = "1";
+          englishName.classList.remove("glitch");
 
-            // Switch back to English after 2 seconds
-            setTimeout(() => {
-                marathiName.style.opacity = '0';
-                englishName.style.opacity = '1';
-            }, 2300);
-        }
+          // Start glitch on Marathi
+          marathiName.classList.add("glitch");
+        }, 300);
 
-        // Start the first flicker after page load
-        setTimeout(flickerEffect, 2000);
+        // Remove glitch from Marathi after it's shown
+        setTimeout(() => {
+          marathiName.classList.remove("glitch");
+        }, 600); // Optional, can be same as glitch duration
 
-        // Repeat the effect every 8 seconds
-        setInterval(flickerEffect, 8000);
+        // Switch back to English after 2 seconds
+        setTimeout(() => {
+          marathiName.style.opacity = "0";
+          englishName.style.opacity = "1";
+
+          // Optional: glitch English again when returning
+          englishName.classList.add("glitch");
+          setTimeout(() => {
+            englishName.classList.remove("glitch");
+          }, 300);
+        }, 3300);
+      }
+
+      // Start the first flicker after page load
+      setTimeout(flickerEffect, 2000);
+
+      // Repeat the effect every 8 seconds
+      setInterval(flickerEffect, 12000);
     </script>
-</body>
+  </body>
 </html>

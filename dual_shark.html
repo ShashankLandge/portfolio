@@ -306,33 +306,43 @@
   const marathiName = document.getElementById('marathiName');
 
   function flickerEffect() {
-    // Start the glitch animation on English text
-    englishName.classList.add('glitch');
+  // Start glitch on English
+  englishName.classList.add('glitch');
 
-    // After glitch animation completes, switch to Marathi
+  // Switch to Marathi after glitch
+  setTimeout(() => {
+    englishName.style.opacity = '0';
+    marathiName.style.opacity = '1';
+    englishName.classList.remove('glitch');
+
+    // Start glitch on Marathi
+    marathiName.classList.add('glitch');
+  }, 300);
+
+  // Remove glitch from Marathi after it's shown
+  setTimeout(() => {
+    marathiName.classList.remove('glitch');
+  }, 600); // Optional, can be same as glitch duration
+
+  // Switch back to English after 2 seconds
+  setTimeout(() => {
+    marathiName.style.opacity = '0';
+    englishName.style.opacity = '1';
+
+    // Optional: glitch English again when returning
+    englishName.classList.add('glitch');
     setTimeout(() => {
-      englishName.style.opacity = '0';
-      marathiName.style.opacity = '1';
       englishName.classList.remove('glitch');
     }, 300);
+  }, 3300);
+}
 
-    // Switch back to English after 2 seconds
-    setTimeout(() => {
-      marathiName.classList.add('glitch');
-    }, 2300);
-    
-    setTimeout(() => {
-      marathiName.style.opacity = '0';
-      englishName.style.opacity = '1';
-      marathiName.classList.remove('glitch');
-    }, 300);
-  }
 
   // Start the first flicker after page load
-  setTimeout(flickerEffect, 3000);
+  setTimeout(flickerEffect, 2000);
 
   // Repeat the effect every 8 seconds
-  setInterval(flickerEffect, 9000);
+  setInterval(flickerEffect, 12000);
 </script>
 </body>
 </html>
