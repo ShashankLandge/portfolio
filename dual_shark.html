@@ -6,6 +6,20 @@
   <title>Dual Shark Cursor</title>
 
   <style>
+    @font-face {
+      font-family: 'Khand';
+      src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/Khand-Regular.ttf?v=1750623448034') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'JetBrains_Mono';
+      src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/JetBrainsMono-Regular.ttf?v=1750623439122') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
@@ -43,11 +57,91 @@
 
 
     .name {
-      font-family: "EB_Garamond", serif;
       font-size: 2.1rem;
       font-weight: normal;
-      margin-bottom: 1rem;
+      margin-bottom: 0.6rem;
       pointer-events: auto;
+      position: relative;
+      height: 2rem;
+      overflow: visible;
+    }
+
+    .name-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: opacity 0.1s ease;
+      white-space: nowrap;
+    }
+
+    .name-english {
+      font-family: "JetBrains_Mono", serif;
+      opacity: 1;
+    }
+
+    .name-marathi {
+      font-family: 'Khand', sans-serif;
+      opacity: 0;
+      font-size: 2.1rem;
+    }
+
+    .title {
+      font-family: "JetBrains_Mono", serif;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 2.1rem;
+      letter-spacing: 0.5px;
+    }
+
+    .glitch {
+      animation: glitch 0.3s ease-in-out;
+    }
+
+    @keyframes glitch {
+      0% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      10% {
+        opacity: 0.8;
+        transform: translateX(-2px);
+      }
+      20% {
+        opacity: 0.3;
+        transform: translateX(2px);
+      }
+      30% {
+        opacity: 0.9;
+        transform: translateX(-1px);
+      }
+      40% {
+        opacity: 0.1;
+        transform: translateX(1px);
+      }
+      50% {
+        opacity: 0.7;
+        transform: translateX(-2px);
+      }
+      60% {
+        opacity: 0.2;
+        transform: translateX(2px);
+      }
+      70% {
+        opacity: 0.9;
+        transform: translateX(-1px);
+      }
+      80% {
+        opacity: 0.4;
+        transform: translateX(1px);
+      }
+      90% {
+        opacity: 0.8;
+        transform: translateX(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(0);
+      }
     }
 
     .menu a {
@@ -55,21 +149,112 @@
       margin-bottom: 0.5rem;
       text-decoration: none;
       color: white;
-      font-family: "EB_Garamond", serif;
+      font-family: "JetBrains_Mono", serif;
       font-size: 1.2rem;
       font-weight: normal;
       opacity: 0.8;
       transition: opacity 0.2s;
       pointer-events: auto;
     }
+
+    .menu a.current {
+      font-size: 1.5rem;
+      line-height: 1rem;
+      position: relative;
+    }
+
     .menu a:hover {
       opacity: 1;
+    }
+
+    /* Projects section styles */
+    .projects-section {
+      position: absolute;
+      top: 180px;
+      right: 40px;
+      width: 70%;
+      max-width: 600px;
+      pointer-events: auto;
+      text-align: right;
+    }
+
+    .project-list {
+      margin-top: 2rem;
+    }
+
+    .project-item {
+      margin-bottom: 1.8rem;
+      position: relative;
+      transition: transform 0.3s ease;
+    }
+
+    .project-item:hover {
+      transform: translateX(-10px);
+    }
+
+    .project-link {
+      text-decoration: none;
+      display: block;
+    }
+
+    .project-title {
+      font-family: "JetBrains_Mono", serif;
+      font-size: 1.4rem;
+      font-weight: normal;
+      color: white;
+      margin: 0 0 0.2rem 0;
+      letter-spacing: 1px;
+      position: relative;
+      display: inline-block;
+    }
+
+    .project-title::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      right: 0;
+      width: 0;
+      height: 1px;
+      background-color: white;
+      transition: width 0.3s ease;
+    }
+
+    .project-item:hover .project-title::after {
+      width: 100%;
+    }
+
+    .project-info {
+      font-family: "JetBrains_Mono", serif;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0;
+    }
+
+    /* Make sure projects are responsive */
+    @media (max-width: 768px) {
+      .projects-section {
+        width: 90%;
+        top: 150px;
+      }
+
+      .project-title {
+        font-size: 1.2rem;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .projects-section {
+        top: 140px;
+      }
+
+      .project-item {
+        margin-bottom: 1rem;
+      }
     }
 
     body, button, a, canvas {
       cursor: none !important;
     }
-
   </style>
 </head>
 <body>
@@ -77,15 +262,72 @@
 
 <div class="frame">
   <div class="frame-left">
-    <div class="name">Shashank Landge</div>
+    <div class="name">
+      <div class="name-text name-english" id="englishName">Shashank Landge</div>
+      <div class="name-text name-marathi" id="marathiName">शशांक लांडगे</div>
+    </div>
+    <div class="title">Engineer.</div>
     <nav class="menu">
       <a href="cloud_parting.html">Home</a>
-      <a href="dual_shark.html">Projects</a>
+      <a href="dual_shark.html" class="current">.</a>
       <a href="single_shark.html">Contact</a>
     </nav>
   </div>
+
+  <section class="projects-section">
+    <div class="project-list">
+      <div class="project-item">
+        <a href="#" class="project-link">
+          <h2 class="project-title">SELF DRIVEN CAR</h2>
+        </a>
+        <p class="project-info">DEC.2024 / ML & Algo</p>
+      </div>
+
+      <div class="project-item">
+        <a href="#" class="project-link">
+          <h2 class="project-title">MULTI CLIENT VIDEO CALL</h2>
+        </a>
+        <p class="project-info">Apr.2024 / Dev & Networking</p>
+      </div>
+
+      <div class="project-item">
+        <a href="#" class="project-link">
+          <h2 class="project-title">IMMERSIVE PORTFOLIO</h2>
+        </a>
+        <p class="project-info">JUN.2025 / Algo & Dev</p>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script src="src/js/dual_shark.js"></script>
+<script>
+  const englishName = document.getElementById('englishName');
+  const marathiName = document.getElementById('marathiName');
+
+  function flickerEffect() {
+    // Start the glitch animation on English text
+    englishName.classList.add('glitch');
+
+    // After glitch animation completes, switch to Marathi
+    setTimeout(() => {
+      englishName.style.opacity = '0';
+      marathiName.style.opacity = '1';
+      englishName.classList.remove('glitch');
+    }, 300);
+
+    // Switch back to English after 2 seconds
+    setTimeout(() => {
+      marathiName.style.opacity = '0';
+      englishName.style.opacity = '1';
+    }, 2300);
+  }
+
+  // Start the first flicker after page load
+  setTimeout(flickerEffect, 2000);
+
+  // Repeat the effect every 8 seconds
+  setInterval(flickerEffect, 8000);
+</script>
 </body>
 </html>

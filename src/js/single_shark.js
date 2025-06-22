@@ -28,7 +28,7 @@ let fish = {
 
 // Particle system for school of fish
 let particles = [];
-const particleCount = 200;
+const particleCount = 350; // Increased from 200 to 350 for more fish
 const avoidanceRadius = 140;
 const maxAvoidanceForce = 4;
 const returnSpeed = 0.015;
@@ -129,9 +129,9 @@ function updateParticles() {
 
         // Update opacity based on avoidance state
         if (particle.isAvoiding) {
-            particle.opacity = Math.min(0.9, particle.opacity + 0.02);
+            particle.opacity = Math.min(1, particle.opacity + 0.02);
         } else {
-            particle.opacity = Math.max(0.3, particle.opacity - 0.01);
+            particle.opacity = Math.max(0.81, particle.opacity - 0.01);
         }
     }
 }
@@ -151,8 +151,8 @@ function drawParticles() {
         ctx.rotate(angle);
 
         // Draw tiny fish
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 0.9;
 
         ctx.beginPath();
         ctx.moveTo(particle.size, 0);

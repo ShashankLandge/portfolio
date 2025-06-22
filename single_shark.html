@@ -7,7 +7,15 @@
   <style>
     @font-face {
       font-family: 'Khand';
-      src: url('src/assets/Khand/Khand-Regular.ttf') format('truetype');
+      src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/Khand-Regular.ttf?v=1750623448034') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+
+    @font-face {
+      font-family: 'JetBrains_Mono';
+      src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/JetBrainsMono-Regular.ttf?v=1750623439122') format('truetype');
       font-weight: normal;
       font-style: normal;
     }
@@ -46,11 +54,41 @@
       text-align: left;
     }
 
+    .contact-links-container {
+      position: absolute;
+      right: 40px;
+      bottom: 40px;
+      text-align: right;
+      font-family: "JetBrains_Mono", serif;
+      font-size: 1.2rem;
+      font-weight: normal;
+      max-width: 200px;
+      opacity: 0.7;
+      line-height: 1.4;
+    }
+
+    .contact-link {
+      display: block;
+      margin-bottom: 0.7rem;
+      text-decoration: none;
+      color: white;
+      font-family: "JetBrains_Mono", serif;
+      font-size: 1.2rem;
+      opacity: 0.8;
+      transition: opacity 0.3s, transform 0.2s;
+      pointer-events: auto;
+    }
+
+    .contact-link:hover {
+      opacity: 1;
+      transform: translateX(-3px);
+    }
+
 
     .name {
       font-size: 2.1rem;
       font-weight: normal;
-      margin-bottom: 1.4rem;
+      margin-bottom: 0.6rem;
       pointer-events: auto;
       position: relative;
       height: 2rem;
@@ -66,7 +104,7 @@
     }
 
     .name-english {
-      font-family: "EB_Garamond", serif;
+      font-family: "JetBrains_Mono", serif;
       opacity: 1;
     }
 
@@ -74,6 +112,14 @@
       font-family: 'Khand', sans-serif;
       opacity: 0;
       font-size: 2.1rem;
+    }
+
+    .title {
+      font-family: "JetBrains_Mono", serif;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 2.1rem;
+      letter-spacing: 0.5px;
     }
 
     .glitch {
@@ -132,13 +178,20 @@
       margin-bottom: 0.5rem;
       text-decoration: none;
       color: white;
-      font-family: "EB_Garamond", serif;
+      font-family: "JetBrains_Mono", serif;
       font-size: 1.2rem;
       font-weight: normal;
       opacity: 0.8;
       transition: opacity 0.2s;
       pointer-events: auto;
     }
+
+    .menu a.current {
+      font-size: 1.5rem;
+      line-height: 1rem;
+      position: relative;
+    }
+
     .menu a:hover {
       opacity: 1;
     }
@@ -158,11 +211,18 @@
       <div class="name-text name-english" id="englishName">Shashank Landge</div>
       <div class="name-text name-marathi" id="marathiName">शशांक लांडगे</div>
     </div>
+    <div class="title">Engineer.</div>
     <nav class="menu">
       <a href="cloud_parting.html">Home</a>
       <a href="dual_shark.html">Projects</a>
-      <a href="single_shark.html">Contact</a>
+      <a href="single_shark.html" class="current">.</a>
     </nav>
+  </div>
+  <div class="contact-links-container">
+    <a href="mailto:your.email@example.com" class="contact-link">Email ↗</a>
+    <a href="https://twitter.com/yourusername" class="contact-link" target="_blank">Github ↗</a>
+    <a href="https://instagram.com/yourusername" class="contact-link" target="_blank">Leetcode ↗</a>
+    <a href="https://linkedin.com/in/yourusername" class="contact-link" target="_blank">LinkedIn ↗</a>
   </div>
 </div>
 

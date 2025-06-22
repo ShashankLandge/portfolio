@@ -1,140 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shark Swimming Through Clouds</title>
-    <style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Shashank | Intro</title>
 
-/*         @font-face {
-            font-family: 'EB_Garamond';
-            src: url('src/assets/EB_Garamond/EB_Garamond/static/EBGaramond-Regular.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        } */
-        html, body {
-            margin: 0;
-            padding: 0;
+    <style>
+        @font-face {
+          font-family: 'Khand';
+          src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/Khand-Regular.ttf?v=1750623448034') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+
+        @font-face {
+          font-family: 'JetBrains_Mono';
+          src: url('https://cdn.glitch.global/07bb69db-5f7c-4560-90f9-f83b73060c0b/JetBrainsMono-Regular.ttf?v=1750623439122') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: #000000;
             overflow: hidden;
-            height: 100%;
+            font-family: 'JetBrains_Mono', monospace;
             cursor: none;
         }
 
+        .intro {
+            position: fixed;
+            width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+            background-color: #000000;
+            z-index: 1000;
+        }
+
         canvas {
+            position: absolute; top: 0; left: 0; z-index: 0;
+        }
+
+        .skill-word {
+            font-size: 1.8rem;
+            font-family: 'JetBrains_Mono', monospace;
+            color: rgba(255, 255, 255, 0.7);
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: block;
-            pointer-events: none; /* Ensures canvas doesn't block UI */
+            z-index: 3;
+            letter-spacing: 2px;
+            opacity: 1;
+            transform: translateY(80px) translateZ(0);
         }
 
-        #cloudCanvas {
-            z-index: 0;
-        }
-
-        #sharkCanvas {
+        .name-reveal {
+            font-size: 3.2rem;
+            font-family: 'Khand', sans-serif;
+            letter-spacing: 4px;
+            color: white;
+            opacity: 0;
             z-index: 1;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+            transform: scale(1.1) translateZ(0);
+            filter: blur(2px);
+        }
+
+        .main-content {
+            display: none;
+            padding: 4rem;
+            text-align: center;
+            color: white;
         }
 
         .frame {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: calc(100vw - 80px);
-            height: calc(100vh - 80px);
-            margin: 40px;
-            box-sizing: border-box;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            pointer-events: none;
-            font-family: 'Courier New', monospace;
-            color: white;
-            z-index: 2; /* Make sure it's above the canvases */
-        }
-
-
-        .frame-left {
-            position: absolute;
-            top: 40px;
-            left: 40px;
-            text-align: left;
-        }
-
-        .frame-bottom-right {
-            position: absolute;
-            right: 40px;
-            bottom: 40px;
-            text-align: right;
-            font-family: "EB_Garamond", serif;
-            font-size: 1.2rem;
-            font-weight: normal;
-            max-width: 200px;
-            opacity: 0.7;
-            line-height: 1.4;
-        }
-
-
-        .name {
-            font-family: "EB_Garamond", serif;
-            font-size: 2.1rem;
-            font-weight: normal;
-            margin-bottom: 1rem;
-            pointer-events: auto;
-        }
-
-        .menu a {
-            display: block;
-            margin-bottom: 0.5rem;
-            text-decoration: none;
-            color: white;
-            font-family: "EB_Garamond", serif;
-            font-size: 1.2rem;
-            font-weight: normal;
-            opacity: 0.8;
-            transition: opacity 0.2s;
-            pointer-events: auto;
-        }
-        .menu a:hover {
-            opacity: 1;
-        }
-
-        .frame a, .name {
-            pointer-events: auto;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: calc(100vw - 80px);
+          height: calc(100vh - 80px);
+          margin: 40px;
+          box-sizing: border-box;
+          padding: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.6);
+          pointer-events: none;
+          z-index: 2;
         }
 
         body, button, a, canvas {
-            cursor: none !important;
+          cursor: none !important;
         }
     </style>
 </head>
 <body>
-    <canvas id="cloudCanvas"></canvas>
-    <canvas id="sharkCanvas"></canvas>
 
-    <div class="frame">
-        <div class="frame-left">
-            <div class="name">Shashank Landge</div>
-            <nav class="menu">
-                <a href="single_shark.html">Home</a>
-                <a href="dual_shark.html">Projects</a>
-                <a href="single_shark.html">Contact</a>
-            </nav>
-        </div>
-        <div class="frame-bottom-right">
-            <p>
-                Born in 2003<br />
-                in Maharashtra, India.<br />
-                I explore logic,<br />
-                code, and learning.<br />
-                Pursuing clarity<br />
-                through algorithms,<br />
-                and simplicity.
-            </p>
-        </div>
-    </div>
+<div class="intro">
+    <canvas id="particles"></canvas>
+    <div class="frame"></div>
+    <div class="name-reveal" id="name">Shashank Landge</div>
+    <div class="skill-word" id="word"></div>
+</div>
 
-    <script src="src/js/cloud_parting.js"></script>
+<div class="main-content">
+    <h1>Welcome to My Portfolio</h1>
+    <p>This is the main content after the intro...</p>
+</div>
+
+<!-- GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<script src="src/js/intro.js"></script>
 </body>
 </html>

@@ -190,8 +190,8 @@ function drawParticles() {
         const angle = Math.atan2(particle.vy, particle.vx);
         ctx.rotate(angle);
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 0.9;
 
         ctx.beginPath();
         ctx.moveTo(particle.size, 0);
