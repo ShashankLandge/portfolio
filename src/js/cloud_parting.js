@@ -5,12 +5,31 @@ const gl = cloudCanvas.getContext('webgl');
 // Shark canvas setup
 const sharkCanvas = document.getElementById('sharkCanvas');
 const ctx = sharkCanvas.getContext('2d');
+//
+// function resizeCanvases() {
+//     cloudCanvas.width = window.innerWidth;
+//     cloudCanvas.height = window.innerHeight;
+//     sharkCanvas.width = window.innerWidth;
+//     sharkCanvas.height = window.innerHeight;
+// }
 
 function resizeCanvases() {
-    cloudCanvas.width = window.innerWidth;
-    cloudCanvas.height = window.innerHeight;
-    sharkCanvas.width = window.innerWidth;
-    sharkCanvas.height = window.innerHeight;
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight;
+
+    // Set canvas internal resolution to match display size exactly
+    cloudCanvas.width = displayWidth;
+    cloudCanvas.height = displayHeight;
+    cloudCanvas.style.width = displayWidth + "px";
+    cloudCanvas.style.height = displayHeight + "px";
+
+    sharkCanvas.width = displayWidth;
+    sharkCanvas.height = displayHeight;
+    sharkCanvas.style.width = displayWidth + "px";
+    sharkCanvas.style.height = displayHeight + "px";
+
+    // No scaling needed since we're using 1:1 mapping
+    window.canvasScale = 1;
 }
 
 resizeCanvases();
@@ -287,6 +306,23 @@ function createProgram(gl, vertexShader, fragmentShader) {
     return program;
 }
 
+function checkWebGLSupport() {
+    if (!gl) {
+        console.warn('WebGL not supported, using fallback');
+        return false;
+    }
+
+    // Check for mobile WebGL limitations
+    const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    const maxRenderbufferSize = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+
+    if (maxTextureSize < 2048 || maxRenderbufferSize < 2048) {
+        console.warn('WebGL limited on this device');
+    }
+
+    return true;
+}
+
 const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
 const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 const program = createProgram(gl, vertexShader, fragmentShader);
@@ -462,7 +498,7 @@ function drawFish(x, y, angle, time) {
 }
 
 function drawCursor() {
-    if(!mouseReady) return;
+    if(!mouseReady || isMobile()) return;
     ctx.beginPath();
     ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
     ctx.fillStyle = "white";
@@ -475,11 +511,74 @@ function drawCursor() {
     ctx.stroke();
 }
 
+// Mobile detection
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        ('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0);
+}
+
+// Touch handling functions
+// function getTouchPos(e) {
+//     const rect = sharkCanvas.getBoundingClientRect();
+//     const touch = e.touches[0] || e.changedTouches[0];
+//     return {
+//         x: (touch.clientX - rect.left) * (sharkCanvas.width / rect.width),
+//         y: (touch.clientY - rect.top) * (sharkCanvas.height / rect.height)
+//     };
+// }
+function getTouchPos(e) {
+    const rect = sharkCanvas.getBoundingClientRect();
+    const touch = e.touches[0] || e.changedTouches[0];
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    const touchPos = getTouchPos(e);
+    mouse.x = touchPos.x;
+    mouse.y = touchPos.y;
+    mouseReady = true;
+    dragging = true;
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (dragging) {
+        const touchPos = getTouchPos(e);
+        mouse.x = touchPos.x;
+        mouse.y = touchPos.y;
+        fish.targetX = mouse.x;
+        fish.targetY = mouse.y;
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    dragging = false;
+    fish.idleT = 0;
+    fish.pathQueue = [];
+    fish.currentCurve = null;
+    enqueueBezierPaths(3, { x: fish.x, y: fish.y });
+}
+
+// function updateMouse(e) {
+//     mouse.x = e.clientX;
+//     mouse.y = e.clientY;
+//     mouseReady = true;
+// }
+
 function updateMouse(e) {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
+    const rect = sharkCanvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
     mouseReady = true;
 }
+
 
 function enqueueBezierPaths(count = 3, start = { x: fish.x, y: fish.y }) {
     for (let i = 0; i < count; i++) {
@@ -490,30 +589,43 @@ function enqueueBezierPaths(count = 3, start = { x: fish.x, y: fish.y }) {
 }
 
 // Event listeners
-window.addEventListener("mousedown", (e) => {
-    dragging = true;
-    updateMouse(e);
-});
+// Event listeners - Desktop
+if (!isMobile()) {
+    window.addEventListener("mousedown", (e) => {
+        dragging = true;
+        updateMouse(e);
+    });
 
-window.addEventListener("mousemove", (e) => {
-    updateMouse(e);
-    if (dragging) {
-        fish.targetX = mouse.x;
-        fish.targetY = mouse.y;
-    }
-});
+    window.addEventListener("mousemove", (e) => {
+        updateMouse(e);
+        if (dragging) {
+            fish.targetX = mouse.x;
+            fish.targetY = mouse.y;
+        }
+    });
 
-window.addEventListener("mouseup", () => {
-    dragging = false;
-    fish.idleT = 0;
-    fish.pathQueue = [];
-    fish.currentCurve = null;
-    enqueueBezierPaths(3, { x: fish.x, y: fish.y });
-});
+    window.addEventListener("mouseup", () => {
+        dragging = false;
+        fish.idleT = 0;
+        fish.pathQueue = [];
+        fish.currentCurve = null;
+        enqueueBezierPaths(3, { x: fish.x, y: fish.y });
+    });
+}
+
+// Event listeners - Mobile
+if (isMobile()) {
+    sharkCanvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    sharkCanvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+    sharkCanvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+    sharkCanvas.addEventListener("touchcancel", handleTouchEnd, { passive: false });
+}
 
 window.addEventListener("resize", () => {
     resizeCanvases();
-    gl.viewport(0, 0, cloudCanvas.width, cloudCanvas.height);
+    if (gl) {
+        gl.viewport(0, 0, cloudCanvas.width, cloudCanvas.height);
+    }
     fish.pathQueue = [];
     fish.currentCurve = null;
     enqueueBezierPaths(3, { x: fish.x, y: fish.y });
@@ -576,23 +688,39 @@ function animate(time) {
 
     updateBodySegments();
 
-    // Render clouds
-    gl.viewport(0, 0, cloudCanvas.width, cloudCanvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    // Render clouds (with mobile fallback)
+    if (gl && checkWebGLSupport()) {
+        try {
+            gl.viewport(0, 0, cloudCanvas.width, cloudCanvas.height);
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.useProgram(program);
+            gl.useProgram(program);
 
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
-    gl.uniform2f(resolutionUniformLocation, cloudCanvas.width, cloudCanvas.height);
-    gl.uniform1f(timeUniformLocation, time * 0.001);
-    gl.uniform2f(sharkPosUniformLocation, fish.x, fish.y);
-    gl.uniform1f(avoidanceRadiusUniformLocation, 200); // Increased avoidance radius
+            gl.uniform2f(resolutionUniformLocation, cloudCanvas.width, cloudCanvas.height);
+            gl.uniform1f(timeUniformLocation, time * 0.001);
+            gl.uniform2f(sharkPosUniformLocation, fish.x, fish.y);
+            gl.uniform1f(avoidanceRadiusUniformLocation, 200);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        } catch (error) {
+            console.warn('WebGL rendering failed:', error);
+            // Fallback: simple gradient background
+            const cloudCtx = cloudCanvas.getContext('2d');
+            const gradient = cloudCtx.createRadialGradient(
+                cloudCanvas.width/2, cloudCanvas.height/2, 0,
+                cloudCanvas.width/2, cloudCanvas.height/2, Math.max(cloudCanvas.width, cloudCanvas.height)/2
+            );
+            gradient.addColorStop(0, 'rgba(40, 40, 40, 1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+            cloudCtx.fillStyle = gradient;
+            cloudCtx.fillRect(0, 0, cloudCanvas.width, cloudCanvas.height);
+        }
+    }
 
     // Render shark
     ctx.clearRect(0, 0, sharkCanvas.width, sharkCanvas.height);
