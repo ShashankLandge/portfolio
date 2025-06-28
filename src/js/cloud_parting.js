@@ -17,19 +17,32 @@ function resizeCanvases() {
     const displayWidth = window.innerWidth;
     const displayHeight = window.innerHeight;
 
-    // Set canvas internal resolution to match display size exactly
-    cloudCanvas.width = displayWidth;
-    cloudCanvas.height = displayHeight;
+    // Get device pixel ratio for crisp rendering on high-DPI displays
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    // Set canvas internal resolution with pixel ratio scaling
+    const canvasWidth = displayWidth * pixelRatio;
+    const canvasHeight = displayHeight * pixelRatio;
+
+    // Cloud canvas setup
+    cloudCanvas.width = canvasWidth;
+    cloudCanvas.height = canvasHeight;
     cloudCanvas.style.width = displayWidth + "px";
     cloudCanvas.style.height = displayHeight + "px";
 
-    sharkCanvas.width = displayWidth;
-    sharkCanvas.height = displayHeight;
+    // Shark canvas setup
+    sharkCanvas.width = canvasWidth;
+    sharkCanvas.height = canvasHeight;
     sharkCanvas.style.width = displayWidth + "px";
     sharkCanvas.style.height = displayHeight + "px";
 
-    // No scaling needed since we're using 1:1 mapping
-    window.canvasScale = 1;
+    // Scale the 2D context for high-DPI displays
+    ctx.scale(pixelRatio, pixelRatio);
+
+    // Store pixel ratio for coordinate calculations
+    window.canvasScale = pixelRatio;
+    window.displayWidth = displayWidth;
+    window.displayHeight = displayHeight;
 }
 
 resizeCanvases();
@@ -46,18 +59,18 @@ let mouseReady = false; // Flag to track real mouse movement
 let dragging = false;
 
 let fish = {
-    x: sharkCanvas.width / 2,
-    y: sharkCanvas.height / 2,
+    x: window.displayWidth / 2 || window.innerWidth / 2,
+    y: window.displayHeight / 2 || window.innerHeight / 2,
     angle: 0,
     speed: 2,
-    targetX: sharkCanvas.width / 2,
-    targetY: sharkCanvas.height / 2,
+    targetX: window.displayWidth / 2 || window.innerWidth / 2,
+    targetY: window.displayHeight / 2 || window.innerHeight / 2,
     time: 0,
     idleT: 0,
     pathQueue: [],
     currentCurve: null,
-    lastX: sharkCanvas.width / 2,
-    lastY: sharkCanvas.height / 2,
+    lastX: window.displayWidth / 2 || window.innerWidth / 2,
+    lastY: window.displayHeight / 2 || window.innerHeight / 2,
     bodySegments: [],
     positionHistory: []
 };
@@ -253,22 +266,8 @@ const fragmentShaderSource = `
                 float cloudiness = smoothstep(0.15, 0.85, f);
                 col = mix(col, vec3(1.0), cloudiness);
                 
-                // Add subtle shading and depth
-                vec2 ex = vec2(1.0 / iResolution.x, 0.0);
-                vec2 ey = vec2(0.0, 1.0 / iResolution.y);
-                vec3 nor = normalize(vec3(funcs(q + ex, sharkPosNorm, avoidanceRadiusNorm) - f, ex.x, funcs(q + ey, sharkPosNorm, avoidanceRadiusNorm) - f));
-                
-                vec3 lig = normalize(vec3(0.9, -0.2, -0.4));
-                float dif = clamp(0.3 + 0.7 * dot(nor, lig), 0.0, 1.0);
-                
-                // Apply lighting with more contrast
-                col *= 0.7 + 0.3 * dif;
-                
-                // Add some atmospheric perspective
-                col *= 0.9 + 0.1 * (1.0 - cloudiness);
-                
                 tot = col;
-                
+
                 // Subtle vignette effect
                 vec2 p = fragCoord / iResolution.xy;
                 tot *= 0.6 + 0.4 * sqrt(16.0 * p.x * p.y * (1.0 - p.x) * (1.0 - p.y));
@@ -367,8 +366,8 @@ function generateBezierPath(start) {
     };
 
     [p2, p3, p4].forEach(p => {
-        p.x = Math.max(50, Math.min(sharkCanvas.width - 50, p.x));
-        p.y = Math.max(50, Math.min(sharkCanvas.height - 50, p.y));
+        p.x = Math.max(50, Math.min(window.displayWidth - 50, p.x));
+        p.y = Math.max(50, Math.min(window.displayHeight - 50, p.y));
     });
 
     return { p1, p2, p3, p4 };
@@ -703,7 +702,7 @@ function animate(time) {
 
             gl.uniform2f(resolutionUniformLocation, cloudCanvas.width, cloudCanvas.height);
             gl.uniform1f(timeUniformLocation, time * 0.001);
-            gl.uniform2f(sharkPosUniformLocation, fish.x, fish.y);
+            gl.uniform2f(sharkPosUniformLocation, fish.x * window.canvasScale, fish.y * window.canvasScale);
             gl.uniform1f(avoidanceRadiusUniformLocation, 200);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -720,6 +719,12 @@ function animate(time) {
             cloudCtx.fillStyle = gradient;
             cloudCtx.fillRect(0, 0, cloudCanvas.width, cloudCanvas.height);
         }
+    } else {
+        // Mobile fallback: draw animated clouds in 2D canvas
+        if (!mobileFallback) {
+            mobileFallback = createMobileFallbackClouds();
+        }
+        drawMobileClouds(mobileFallback, time);
     }
 
     // Render shark
@@ -729,6 +734,101 @@ function animate(time) {
 
     requestAnimationFrame(animate);
 }
+
+// Mobile-friendly cloud fallback using 2D canvas
+function createMobileFallbackClouds() {
+    const cloudCtx = cloudCanvas.getContext('2d');
+    const width = cloudCanvas.width;
+    const height = cloudCanvas.height;
+
+    // Clear canvas
+    cloudCtx.fillStyle = 'black';
+    cloudCtx.fillRect(0, 0, width, height);
+
+    // Cloud parameters
+    const cloudCount = 25;
+    const clouds = [];
+
+    // Generate cloud data
+    for (let i = 0; i < cloudCount; i++) {
+        clouds.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            size: 80 + Math.random() * 120,
+            opacity: 0.3 + Math.random() * 0.7,
+            speed: 0.2 + Math.random() * 0.8,
+            phase: Math.random() * Math.PI * 2
+        });
+    }
+
+    return { cloudCtx, clouds, width, height };
+}
+
+function drawMobileClouds(fallbackData, time) {
+    const { cloudCtx, clouds, width, height } = fallbackData;
+
+    // Clear with black background
+    cloudCtx.fillStyle = 'black';
+    cloudCtx.fillRect(0, 0, width, height);
+
+    // Draw clouds
+    clouds.forEach((cloud, index) => {
+        // Animate cloud position
+        cloud.x += Math.sin(time * 0.0005 + cloud.phase) * cloud.speed;
+        cloud.y += Math.cos(time * 0.0003 + cloud.phase) * cloud.speed * 0.5;
+
+        // Wrap around screen
+        if (cloud.x > width + cloud.size) cloud.x = -cloud.size;
+        if (cloud.x < -cloud.size) cloud.x = width + cloud.size;
+        if (cloud.y > height + cloud.size) cloud.y = -cloud.size;
+        if (cloud.y < -cloud.size) cloud.y = height + cloud.size;
+
+        // Check shark influence - use display coordinates
+        const dx = (fish.x * window.canvasScale) - cloud.x;
+        const dy = (fish.y * window.canvasScale) - cloud.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const sharkInfluence = Math.max(0, 1 - distance / 200);
+
+        // Skip clouds too close to shark (parting effect)
+        if (distance < 80) return;
+
+        // Cloud color and opacity - all clouds are white
+        const animatedOpacity = cloud.opacity * (0.8 + 0.2 * Math.sin(time * 0.001 + cloud.phase));
+        const finalOpacity = animatedOpacity * (1 - sharkInfluence * 0.5);
+
+        cloudCtx.fillStyle = `rgba(255, 255, 255, ${finalOpacity})`;
+
+        // Draw cloud as multiple overlapping circles
+        const circles = 5;
+        for (let i = 0; i < circles; i++) {
+            const offsetX = (Math.random() - 0.5) * cloud.size * 0.5;
+            const offsetY = (Math.random() - 0.5) * cloud.size * 0.3;
+            const circleSize = cloud.size * (0.3 + Math.random() * 0.4);
+
+            cloudCtx.beginPath();
+            cloudCtx.arc(
+                cloud.x + offsetX,
+                cloud.y + offsetY,
+                circleSize,
+                0,
+                Math.PI * 2
+            );
+            cloudCtx.fill();
+        }
+    });
+
+    // Add subtle vignette
+    const gradient = cloudCtx.createRadialGradient(
+        width/2, height/2, 0,
+        width/2, height/2, Math.max(width, height)/2
+    );
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+    cloudCtx.fillStyle = gradient;
+    cloudCtx.fillRect(0, 0, width, height);
+}
+
+let mobileFallback = null;
 
 // Initialize
 enqueueBezierPaths(3);
