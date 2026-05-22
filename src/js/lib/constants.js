@@ -1,7 +1,6 @@
 export const CANVAS_ID = "sceneCanvas";
 
 export const ROUTE = Object.freeze({
-  INTRO: "intro",
   HOME: "home",
   PROJECTS: "projects",
   CONTACT: "contact",
@@ -16,6 +15,7 @@ export const SCALE = Object.freeze({
 export const SHARK_TYPE = Object.freeze({
   REGULAR: "regular",
   HAMMERHEAD: "hammerhead",
+  REEF: "reef",
 });
 
 export const SHARK = Object.freeze({
@@ -36,26 +36,36 @@ export const SHARK = Object.freeze({
   SEGMENT_ANGLE_LERP_FACTOR: 0.15,
   FADE_IN_RATE: 0.025,
   FADE_OUT_RATE: 0.025,
+  TRAIL_SAMPLE_INTERVAL: 6,
+  TRAIL_MAX_SAMPLES: 90,
+  TRAIL_LIFE_TICKS: 540,
 });
 
 export const PARTICLES = Object.freeze({
-  COUNT_DESKTOP: 280,
-  COUNT_MOBILE: 140,
+  COUNT_DESKTOP: 360,
+  COUNT_MOBILE: 180,
   MOBILE_BREAKPOINT_PX: 768,
-  AVOIDANCE_RADIUS: 140,
-  AVOIDANCE_FORCE: 4,
-  SCHOOL_ANGLE_INCREMENT: 0.008,
-  DAMPING: 0.95,
-  SCHOOL_FORCE_FACTOR: 0.01,
-  AVOIDANCE_FACTOR: 0.15,
-  MIN_OPACITY_IDLE: 0.81,
+  AVOIDANCE_RADIUS: 110,
+  AVOIDANCE_FORCE: 2.2,
+  TRAIL_AVOIDANCE_RADIUS: 78,
+  TRAIL_AVOIDANCE_FORCE: 1.4,
+  SCHOOL_ANGLE_INCREMENT: 0.0055,
+  DAMPING: 0.9,
+  MAX_SPEED: 1.2,
+  SCHOOL_FORCE_FACTOR: 0.006,
+  AVOIDANCE_FACTOR: 0.09,
+  WANDER_NOISE_FACTOR: 0.018,
+  WANDER_NOISE_SCALE: 0.0025,
+  ALIGNMENT_RADIUS: 32,
+  ALIGNMENT_FACTOR: 0.04,
+  MIN_OPACITY_IDLE: 0.78,
   OPACITY_FADE_RATE_IN: 0.02,
-  OPACITY_FADE_RATE_OUT: 0.01,
-  SCHOOL_CENTER_RADIUS_X: 100,
+  OPACITY_FADE_RATE_OUT: 0.008,
+  SCHOOL_CENTER_RADIUS_X: 110,
   SCHOOL_CENTER_RADIUS_Y: 60,
   SCHOOL_CENTER_DRIFT_FACTOR: 0.3,
   STROKE_STYLE: "rgba(255, 255, 255, 0.9)",
-  STROKE_WIDTH: 0.9,
+  STROKE_WIDTH: 0.85,
 });
 
 export const BEZIER = Object.freeze({
@@ -65,22 +75,6 @@ export const BEZIER = Object.freeze({
   PATH_QUEUE_MIN: 3,
   PATH_QUEUE_REFILL_COUNT: 2,
   INITIAL_QUEUE_COUNT: 3,
-});
-
-export const INTRO = Object.freeze({
-  PARTICLE_COUNT: 100,
-  SKILLS: [
-    "Developer",
-    "Designer",
-    "Machine Learning",
-    "Web Development",
-    "AI Engineering",
-    "NextJS",
-    "ReactJS",
-    "Deep Learning",
-  ],
-  WORD_FLICKER_DURATION: 0.2,
-  WORD_FLICKER_DELAY_MS: 100,
 });
 
 export const TRANSITION_MS = Object.freeze({
@@ -100,7 +94,7 @@ export const NAME_FLICKER = Object.freeze({
 export const SHARK_LAYOUT_BY_ROUTE = Object.freeze({
   [ROUTE.HOME]: [SHARK_TYPE.REGULAR],
   [ROUTE.PROJECTS]: [SHARK_TYPE.REGULAR, SHARK_TYPE.HAMMERHEAD],
-  [ROUTE.CONTACT]: [SHARK_TYPE.REGULAR],
+  [ROUTE.CONTACT]: [SHARK_TYPE.REGULAR, SHARK_TYPE.HAMMERHEAD, SHARK_TYPE.REEF],
 });
 
 export function isMobileViewport() {

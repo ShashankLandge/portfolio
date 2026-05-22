@@ -16,6 +16,8 @@ export class Shark {
     this.bodySegments = [];
     this.opacity = initialOpacity;
     this.targetOpacity = 1;
+    this.trail = [];
+    this.ticksSinceTrailSample = 0;
     this.initBodySegments(scaleFactor);
   }
 
@@ -60,6 +62,7 @@ export class Shark {
 
     this.updateHeadAngle();
     this.updateBodySegments(scaleFactor, isDragging);
+    this.updateTrail();
   }
 
   followMouse(mouse) {
@@ -124,9 +127,10 @@ export class Shark {
 
   updateBodySegments(scaleFactor, isDragging) {
     const segmentDistance = SHARK.SEGMENT_DISTANCE * scaleFactor;
-    const waveAmplitude =
+    const baseAmplitude =
       (isDragging ? SHARK.WAVE_AMPLITUDE_DRAGGING : SHARK.WAVE_AMPLITUDE_IDLE) *
       scaleFactor;
+    const lastIndex = this.bodySegments.length - 1;
 
     this.bodySegments[0].x = this.x;
     this.bodySegments[0].y = this.y;
@@ -141,8 +145,10 @@ export class Shark {
       const baseY =
         previousSegment.y - Math.sin(previousSegment.angle) * segmentDistance;
 
+      const tailRamp = i / lastIndex;
+      const segmentAmplitude = baseAmplitude * (0.3 + 0.7 * tailRamp);
       const waveOffset =
-        Math.sin(this.time * SHARK.WAVE_FREQUENCY + i * 0.8) * waveAmplitude;
+        Math.sin(this.time * SHARK.WAVE_FREQUENCY + i * 0.8) * segmentAmplitude;
       const perpendicularAngle = previousSegment.angle + Math.PI / 2;
 
       const targetX = baseX + Math.cos(perpendicularAngle) * waveOffset;
@@ -162,15 +168,39 @@ export class Shark {
     }
   }
 
+  updateTrail() {
+    for (let i = this.trail.length - 1; i >= 0; i--) {
+      const sample = this.trail[i];
+      sample.age += 1;
+      if (sample.age >= SHARK.TRAIL_LIFE_TICKS) {
+        this.trail.splice(i, 1);
+      }
+    }
+
+    this.ticksSinceTrailSample += 1;
+    if (this.ticksSinceTrailSample >= SHARK.TRAIL_SAMPLE_INTERVAL) {
+      this.ticksSinceTrailSample = 0;
+      this.trail.push({ x: this.x, y: this.y, age: 0 });
+      if (this.trail.length > SHARK.TRAIL_MAX_SAMPLES) {
+        this.trail.shift();
+      }
+    }
+  }
+
   draw(ctx, scaleFactor) {
     if (this.opacity <= 0) return;
 
     ctx.save();
     ctx.globalAlpha = this.opacity;
     ctx.strokeStyle = SHARK.COLOR;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
     this.drawHead(ctx, scaleFactor);
     this.drawBodyLine(ctx, scaleFactor);
+    if (this.type === SHARK_TYPE.REEF) {
+      this.drawRearFins(ctx, scaleFactor);
+    }
     this.drawTail(ctx, scaleFactor);
 
     ctx.restore();
@@ -203,12 +233,66 @@ export class Shark {
     ctx.stroke();
   }
 
+  drawRearFins(ctx, scaleFactor) {
+    const segments = this.bodySegments;
+    const dorsalSeg = segments[Math.floor(segments.length * 0.55)];
+    const pelvicSeg = segments[Math.floor(segments.length * 0.75)];
+
+    this.tracePathSecondDorsal(ctx, dorsalSeg, scaleFactor);
+    this.tracePathPelvicFins(ctx, pelvicSeg, scaleFactor);
+  }
+
+  tracePathSecondDorsal(ctx, segment, scaleFactor) {
+    ctx.save();
+    ctx.translate(segment.x, segment.y);
+    ctx.scale(scaleFactor, scaleFactor);
+    ctx.rotate(segment.angle);
+    ctx.lineWidth = SHARK.LINE_WIDTH;
+    ctx.beginPath();
+    ctx.moveTo(0, -1.5);
+    ctx.lineTo(-3.5, -5.5);
+    ctx.lineTo(-2, -1);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 1.5);
+    ctx.lineTo(-3.5, 5.5);
+    ctx.lineTo(-2, 1);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  tracePathPelvicFins(ctx, segment, scaleFactor) {
+    ctx.save();
+    ctx.translate(segment.x, segment.y);
+    ctx.scale(scaleFactor, scaleFactor);
+    ctx.rotate(segment.angle);
+    ctx.lineWidth = SHARK.LINE_WIDTH;
+    ctx.beginPath();
+    ctx.moveTo(0, -1.2);
+    ctx.lineTo(-2.5, -4);
+    ctx.lineTo(-1.4, -0.8);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 1.2);
+    ctx.lineTo(-2.5, 4);
+    ctx.lineTo(-1.4, 0.8);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
   drawTail(ctx, scaleFactor) {
     const tail = this.bodySegments[this.bodySegments.length - 1];
     ctx.save();
     ctx.translate(tail.x, tail.y);
     ctx.scale(scaleFactor, scaleFactor);
     ctx.rotate(tail.angle);
+    ctx.lineWidth = SHARK.LINE_WIDTH;
     ctx.beginPath();
     ctx.moveTo(-8, 0);
     ctx.lineTo(-18, -6);
@@ -220,20 +304,38 @@ export class Shark {
 
   tracePathRegularHead(ctx) {
     ctx.beginPath();
-    ctx.moveTo(20, 0);
-    ctx.lineTo(5, -8);
-    ctx.lineTo(5, 8);
+    ctx.moveTo(22, 0);
+    ctx.bezierCurveTo(18, -3, 12, -6, 5, -7);
+    ctx.lineTo(5, 7);
+    ctx.bezierCurveTo(12, 6, 18, 3, 22, 0);
     ctx.closePath();
     ctx.stroke();
   }
 
   tracePathHammerhead(ctx) {
     ctx.beginPath();
-    ctx.moveTo(20, -8);
-    ctx.lineTo(20, 8);
-    ctx.lineTo(5, 4);
-    ctx.lineTo(5, -4);
+    ctx.moveTo(16, -14);
+    ctx.lineTo(18, -14);
+    ctx.lineTo(20, -10);
+    ctx.lineTo(20, -4);
+    ctx.lineTo(8, -3);
+    ctx.lineTo(5, -5);
+    ctx.lineTo(5, 5);
+    ctx.lineTo(8, 3);
+    ctx.lineTo(20, 4);
+    ctx.lineTo(20, 10);
+    ctx.lineTo(18, 14);
+    ctx.lineTo(16, 14);
+    ctx.lineTo(14, 10);
+    ctx.lineTo(14, -10);
     ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(17, -11, 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(17, 11, 0.7, 0, Math.PI * 2);
     ctx.stroke();
   }
 

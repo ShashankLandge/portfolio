@@ -275,48 +275,6 @@ canvas {
   border: 0;
 }
 
-.intro {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  background: var(--color-bg);
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.intro[hidden] {
-  display: none !important;
-}
-
-.intro__skill {
-  position: absolute;
-  font-family: "JetBrains_Mono", monospace;
-  font-size: 1.8rem;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 2px;
-  z-index: 3;
-  opacity: 1;
-  transform: translateY(80px) translateZ(0);
-  will-change: opacity, transform;
-}
-
-.intro__name {
-  position: relative;
-  font-family: "Khand", sans-serif;
-  font-size: 3.2rem;
-  letter-spacing: 4px;
-  color: white;
-  opacity: 0;
-  text-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
-  transform: scale(1.1) translateZ(0);
-  filter: blur(2px);
-  z-index: 1;
-  will-change: opacity, transform, filter, text-shadow;
-}
-
 .view {
   position: absolute;
   pointer-events: none;
@@ -344,11 +302,10 @@ canvas {
 }
 
 .view--projects {
-  top: 180px;
   right: var(--frame-margin);
-  width: 70%;
-  max-width: 600px;
+  bottom: var(--frame-margin);
   text-align: right;
+  max-width: 320px;
 }
 
 .view--contact {
@@ -360,17 +317,23 @@ canvas {
 }
 
 .project-list {
-  margin-top: 2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .project-item {
   position: relative;
-  margin-bottom: 1.8rem;
+  margin-bottom: 1rem;
   transition: transform var(--transition-base) var(--easing-default);
 }
 
+.project-item:last-child {
+  margin-bottom: 0;
+}
+
 .project-item:hover {
-  transform: translateX(-10px);
+  transform: translateX(-6px);
 }
 
 .project-link {
@@ -381,12 +344,12 @@ canvas {
 .project-title {
   position: relative;
   display: inline-block;
-  margin: 0 0 0.2rem 0;
+  margin: 0 0 0.15rem 0;
   font-family: "NType82Mono", monospace;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: normal;
   color: white;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .project-title::after {
@@ -474,19 +437,18 @@ canvas {
 
   .frame-section--bottom-right,
   .view--home,
-  .view--contact {
+  .view--contact,
+  .view--projects {
     right: max(10px, env(safe-area-inset-right));
     bottom: max(10px, env(safe-area-inset-bottom));
     font-size: 0.95rem;
-    max-width: 160px;
+    max-width: 200px;
     line-height: 1.3;
   }
 
-  .view--projects {
-    top: 130px;
-    right: max(10px, env(safe-area-inset-right));
-    width: calc(100% - 32px);
-    max-width: 100%;
+  .view--home,
+  .view--contact {
+    max-width: 160px;
   }
 
   .name-display {
@@ -505,24 +467,17 @@ canvas {
     padding: 0.3rem 0 0.3rem 1.2rem;
   }
 
-  .menu-link--current {
+  .menu-link--current,
+  .menu-link--current:hover {
     transform: translateX(0.2rem);
   }
 
   .project-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .project-item {
-    margin-bottom: 1rem;
-  }
-
-  .intro__skill {
-    font-size: 1.3rem;
-  }
-
-  .intro__name {
-    font-size: 2.4rem;
+    margin-bottom: 0.7rem;
   }
 }
 
@@ -536,8 +491,14 @@ canvas {
 
   .frame-section--bottom-right,
   .view--home,
-  .view--contact {
+  .view--contact,
+  .view--projects {
     font-size: 0.85rem;
+    max-width: 170px;
+  }
+
+  .view--home,
+  .view--contact {
     max-width: 140px;
   }
 
@@ -562,12 +523,8 @@ canvas {
 }
 
 @media (max-height: 700px) {
-  .view--projects {
-    top: 140px;
-  }
-
   .project-item {
-    margin-bottom: 1rem;
+    margin-bottom: 0.7rem;
   }
 }
 
