@@ -42,29 +42,71 @@ export const SHARK = Object.freeze({
 });
 
 export const PARTICLES = Object.freeze({
-  COUNT_DESKTOP: 360,
-  COUNT_MOBILE: 180,
+  COUNT_DESKTOP: 1050,
+  COUNT_MOBILE: 500,
   MOBILE_BREAKPOINT_PX: 768,
-  AVOIDANCE_RADIUS: 110,
-  AVOIDANCE_FORCE: 2.2,
-  TRAIL_AVOIDANCE_RADIUS: 78,
-  TRAIL_AVOIDANCE_FORCE: 1.4,
-  SCHOOL_ANGLE_INCREMENT: 0.0055,
-  DAMPING: 0.9,
-  MAX_SPEED: 1.2,
-  SCHOOL_FORCE_FACTOR: 0.006,
-  AVOIDANCE_FACTOR: 0.09,
-  WANDER_NOISE_FACTOR: 0.018,
-  WANDER_NOISE_SCALE: 0.0025,
-  ALIGNMENT_RADIUS: 32,
-  ALIGNMENT_FACTOR: 0.04,
+
+  // Shark / trail avoidance
+  AVOIDANCE_RADIUS: 90,
+  AVOIDANCE_FORCE: 1.8,
+  TRAIL_AVOIDANCE_RADIUS: 48,
+  TRAIL_AVOIDANCE_FORCE: 0.65,
+
+  // School shape (radii are fractions of min(canvasW, canvasH))
+  SCHOOL_RADIUS_X_FACTOR: 0.5,
+  SCHOOL_RADIUS_Y_FACTOR: 0.36,
+  SHAPE_PHASE_INCREMENT: 0.0038,
+  SHAPE_DEFORM_A1: 0.1,
+  SHAPE_DEFORM_A2: 0.07,
+  SHAPE_DEFORM_A3: 0.04,
+  // School centroid orbits around canvas center — fast enough that the school
+  // visibly drifts but never reaches the screen edges.
+  SCHOOL_CENTER_DRIFT_FACTOR: 0.7,
+  SCHOOL_CENTER_DRIFT_X: 70,
+  SCHOOL_CENTER_DRIFT_Y: 44,
+
+  // Soft containment back into the school shape
+  CONTAINMENT_FACTOR: 0.012,
+  CONTAINMENT_SOFT_BAND: 34,
+
+  // Very soft pull toward school center: just enough to keep the school
+  // anchored centrally, but weak enough that sub-flocks can swirl freely
+  // within a large interior deadzone.
+  COMPRESSION_FACTOR: 0.0009,
+  COMPRESSION_INNER_DEADZONE: 0.4, // fraction of avg(rx, ry) with no pull
+
+  // Boid: void-filling cohesion + LOCAL separation + LOCAL alignment.
+  //
+  // Lesson learned: high global alignment causes "consensus collapse" — every
+  // fish averages to the global mean heading, killing sub-flock variety.
+  // Keep alignment LOCAL (small radius, low factor) so distinct neighbourhood
+  // currents emerge and persist instead of merging into one direction.
+  COHESION_RADIUS: 30,
+  COHESION_FACTOR: 0.028,
+  SEPARATION_RADIUS: 16,
+  SEPARATION_FACTOR: 0.018,
+  ALIGNMENT_RADIUS: 18,
+  ALIGNMENT_FACTOR: 0.025,
+
+  // Wander noise — needs to be strong enough to overcome the damping floor
+  // so motion stays visibly lively instead of decaying to zero.
+  WANDER_NOISE_FACTOR: 0.06,
+  WANDER_NOISE_SCALE: 0.0055,
+
+  // Motion — looser damping + higher cap so kinetic energy persists.
+  DAMPING: 0.955,
+  MAX_SPEED: 1.8,
+
+  // Spatial grid (cell size near boid neighbor radius)
+  GRID_CELL_SIZE: 36,
+
+  // Opacity
   MIN_OPACITY_IDLE: 0.78,
-  OPACITY_FADE_RATE_IN: 0.02,
-  OPACITY_FADE_RATE_OUT: 0.008,
-  SCHOOL_CENTER_RADIUS_X: 110,
-  SCHOOL_CENTER_RADIUS_Y: 60,
-  SCHOOL_CENTER_DRIFT_FACTOR: 0.3,
-  STROKE_STYLE: "rgba(255, 255, 255, 0.9)",
+  OPACITY_FADE_RATE_IN: 0.025,
+  OPACITY_FADE_RATE_OUT: 0.01,
+
+  // Render
+  STROKE_STYLE: "rgba(255, 255, 255, 0.92)",
   STROKE_WIDTH: 0.85,
 });
 

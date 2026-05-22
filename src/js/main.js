@@ -43,6 +43,9 @@ function bootstrap() {
   bindMenuClicks(menuLinks, router);
   router.start(readInitialRoute());
 
+  // TEMP: expose debug handle for tuning. Remove before commit.
+  window.__debug = { scene, router };
+
   function handleRouteChange(nextRoute) {
     const sharkTypes = SHARK_LAYOUT_BY_ROUTE[nextRoute] || [];
     scene.setSharkTypes(sharkTypes);

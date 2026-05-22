@@ -2,12 +2,26 @@ import { PARTICLES, SHARK, isMobileViewport } from "./constants.js";
 
 const TRAIL_AGE_NORMALIZER = SHARK.TRAIL_LIFE_TICKS;
 
+/**
+ * Dense, shape-holding fish school.
+ *
+ * - Initial positions are rejection-sampled inside a deformed ellipse, so the
+ *   whole shape is filled (not a ring).
+ * - A spatial hash grid drives O(1) neighbour queries for boid rules and
+ *   reverse-queries for shark / trail avoidance.
+ * - Soft containment keeps fish inside the breathing school shape; compression
+ *   pulls them gently toward the school centroid, refilling voids after a
+ *   shark passes and preventing any sub-flock from leaving the central region.
+ */
 export class ParticleSystem {
   constructor(canvasWidth, canvasHeight) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
+    this.cellSize = PARTICLES.GRID_CELL_SIZE;
+    this.cellSizeInv = 1 / this.cellSize;
+    this.grid = new Map();
     this.particles = [];
-    this.globalSchoolAngle = 0;
+    this.shapePhase = 0;
     this.particleCount = isMobileViewport()
       ? PARTICLES.COUNT_MOBILE
       : PARTICLES.COUNT_DESKTOP;
@@ -16,23 +30,38 @@ export class ParticleSystem {
 
   init() {
     this.particles = [];
-    for (let particleIndex = 0; particleIndex < this.particleCount; particleIndex++) {
-      this.particles.push(this.createParticle(particleIndex));
-    }
-  }
+    const cx = this.canvasWidth / 2;
+    const cy = this.canvasHeight / 2;
+    const { rx, ry } = this.computeSchoolRadii();
 
-  createParticle(particleIndex) {
-    return {
-      x: Math.random() * this.canvasWidth,
-      y: Math.random() * this.canvasHeight,
-      vx: 0,
-      vy: 0,
-      size: Math.random() * 1.6 + 0.7,
-      opacity: Math.random() * 0.5 + 0.4,
-      schoolRadius: Math.random() * 200 + 150,
-      noiseSeed: particleIndex * 13.37 + Math.random() * 100,
-      isAvoiding: false,
-    };
+    for (let i = 0; i < this.particleCount; i++) {
+      // Rejection-sample inside the base ellipse so the whole shape is filled
+      // from the very first frame — no spiral-in.
+      let dx;
+      let dy;
+      do {
+        dx = (Math.random() * 2 - 1) * rx;
+        dy = (Math.random() * 2 - 1) * ry;
+      } while ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 1);
+
+      // Give each fish a small initial velocity so the school is "alive" from
+      // frame zero (avoids the dead-pinned-on-load look).
+      const initialSpeed = 0.3 + Math.random() * 0.3;
+      const initialAngle = Math.random() * Math.PI * 2;
+
+      this.particles.push({
+        x: cx + dx,
+        y: cy + dy,
+        vx: Math.cos(initialAngle) * initialSpeed,
+        vy: Math.sin(initialAngle) * initialSpeed,
+        fx: 0,
+        fy: 0,
+        size: Math.random() * 1.0 + 0.55,
+        opacity: Math.random() * 0.2 + 0.78,
+        noiseSeed: i * 13.37 + Math.random() * 100,
+        isAvoiding: false,
+      });
+    }
   }
 
   resize(canvasWidth, canvasHeight) {
@@ -47,206 +76,371 @@ export class ParticleSystem {
     }
   }
 
+  computeSchoolRadii() {
+    const minDim = Math.min(this.canvasWidth, this.canvasHeight);
+    return {
+      rx: minDim * PARTICLES.SCHOOL_RADIUS_X_FACTOR,
+      ry: minDim * PARTICLES.SCHOOL_RADIUS_Y_FACTOR,
+    };
+  }
+
+  // Deformed-ellipse boundary radius at angle theta from the school centroid.
+  // Three cosine harmonics on theta keep the shape organic (not a perfect
+  // ellipse) and slowly breathing over time.
+  shapeBoundary(theta, rx, ry, time) {
+    const c = Math.cos(theta);
+    const s = Math.sin(theta);
+    const ellipseR = (rx * ry) / Math.sqrt(ry * ry * c * c + rx * rx * s * s);
+    const deform =
+      PARTICLES.SHAPE_DEFORM_A1 * Math.cos(2 * theta + time * 0.5) +
+      PARTICLES.SHAPE_DEFORM_A2 * Math.cos(3 * theta + time * 0.3) +
+      PARTICLES.SHAPE_DEFORM_A3 * Math.cos(5 * theta - time * 0.4);
+    return ellipseR * (1 + deform);
+  }
+
+  // Pack (gx, gy) into a 32-bit-safe number key. Offsets keep negative coords
+  // valid; 4096 supports canvases up to ~131k px per axis at 32px cells.
+  packCell(gx, gy) {
+    return (gx + 2048) * 4096 + (gy + 2048);
+  }
+
+  rebuildGrid() {
+    this.grid.clear();
+    const inv = this.cellSizeInv;
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
+      const key = this.packCell(Math.floor(p.x * inv), Math.floor(p.y * inv));
+      let cell = this.grid.get(key);
+      if (!cell) {
+        cell = [];
+        this.grid.set(key, cell);
+      }
+      cell.push(i);
+    }
+  }
+
   update(activeSharks) {
-    this.globalSchoolAngle += PARTICLES.SCHOOL_ANGLE_INCREMENT;
+    this.shapePhase += PARTICLES.SHAPE_PHASE_INCREMENT;
+    const phase = this.shapePhase;
 
-    const centerX = this.canvasWidth / 2;
-    const centerY = this.canvasHeight / 2;
-    const schoolCenterX =
-      centerX +
-      Math.cos(this.globalSchoolAngle * PARTICLES.SCHOOL_CENTER_DRIFT_FACTOR) *
-        PARTICLES.SCHOOL_CENTER_RADIUS_X;
-    const schoolCenterY =
-      centerY +
-      Math.sin(this.globalSchoolAngle * PARTICLES.SCHOOL_CENTER_DRIFT_FACTOR) *
-        PARTICLES.SCHOOL_CENTER_RADIUS_Y;
+    const { rx, ry } = this.computeSchoolRadii();
+    const baseCx = this.canvasWidth / 2;
+    const baseCy = this.canvasHeight / 2;
+    const schoolCx =
+      baseCx +
+      Math.cos(phase * PARTICLES.SCHOOL_CENTER_DRIFT_FACTOR) *
+        PARTICLES.SCHOOL_CENTER_DRIFT_X;
+    const schoolCy =
+      baseCy +
+      Math.sin(phase * PARTICLES.SCHOOL_CENTER_DRIFT_FACTOR) *
+        PARTICLES.SCHOOL_CENTER_DRIFT_Y;
 
-    const headAvoidanceRadiusSq =
-      PARTICLES.AVOIDANCE_RADIUS * PARTICLES.AVOIDANCE_RADIUS;
-    const trailAvoidanceRadiusSq =
-      PARTICLES.TRAIL_AVOIDANCE_RADIUS * PARTICLES.TRAIL_AVOIDANCE_RADIUS;
-    const maxSpeedSq = PARTICLES.MAX_SPEED * PARTICLES.MAX_SPEED;
+    this.rebuildGrid();
 
-    const noiseTime = this.globalSchoolAngle * 0.6;
+    const particles = this.particles;
+    const particleCount = particles.length;
 
-    for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
-      const particle = this.particles[particleIndex];
+    // Zero per-frame accumulators
+    for (let i = 0; i < particleCount; i++) {
+      const p = particles[i];
+      p.fx = 0;
+      p.fy = 0;
+      p.isAvoiding = false;
+    }
 
-      let avoidanceForceX = 0;
-      let avoidanceForceY = 0;
-      let isAvoiding = false;
+    // --- Shark avoidance: reverse-query the grid from shark head + trail ---
+    const headRadius = PARTICLES.AVOIDANCE_RADIUS;
+    const headRadiusSq = headRadius * headRadius;
+    const trailRadius = PARTICLES.TRAIL_AVOIDANCE_RADIUS;
+    const trailRadiusSq = trailRadius * trailRadius;
+    const inv = this.cellSizeInv;
+    const headSpan = Math.ceil(headRadius * inv);
+    const trailSpan = Math.ceil(trailRadius * inv);
+    const headForce = PARTICLES.AVOIDANCE_FORCE;
+    const trailForce = PARTICLES.TRAIL_AVOIDANCE_FORCE;
 
-      for (let sharkIndex = 0; sharkIndex < activeSharks.length; sharkIndex++) {
-        const shark = activeSharks[sharkIndex];
-        if (shark.opacity <= 0) continue;
+    for (let s = 0; s < activeSharks.length; s++) {
+      const shark = activeSharks[s];
+      const sharkOpacity = shark.opacity;
+      if (sharkOpacity <= 0) continue;
 
-        const dxHead = particle.x - shark.x;
-        const dyHead = particle.y - shark.y;
-        const headDistSq = dxHead * dxHead + dyHead * dyHead;
+      this.applyAvoidanceFromPoint(
+        shark.x,
+        shark.y,
+        headRadius,
+        headRadiusSq,
+        headSpan,
+        headForce * sharkOpacity
+      );
 
-        if (headDistSq < headAvoidanceRadiusSq && headDistSq > 0.001) {
-          isAvoiding = true;
-          const headDistance = Math.sqrt(headDistSq);
-          const headRatio =
-            (PARTICLES.AVOIDANCE_RADIUS - headDistance) / PARTICLES.AVOIDANCE_RADIUS;
-          const headStrength = headRatio * headRatio * shark.opacity;
-          avoidanceForceX +=
-            (dxHead / headDistance) * headStrength * PARTICLES.AVOIDANCE_FORCE;
-          avoidanceForceY +=
-            (dyHead / headDistance) * headStrength * PARTICLES.AVOIDANCE_FORCE;
-        }
-
-        const trail = shark.trail;
-        for (let trailIndex = 0; trailIndex < trail.length; trailIndex++) {
-          const sample = trail[trailIndex];
-          const dxTrail = particle.x - sample.x;
-          const dyTrail = particle.y - sample.y;
-          const trailDistSq = dxTrail * dxTrail + dyTrail * dyTrail;
-
-          if (trailDistSq >= trailAvoidanceRadiusSq || trailDistSq < 0.001) continue;
-
-          const trailDistance = Math.sqrt(trailDistSq);
-          const lifeRemaining = 1 - sample.age / TRAIL_AGE_NORMALIZER;
-          const trailRatio =
-            (PARTICLES.TRAIL_AVOIDANCE_RADIUS - trailDistance) /
-            PARTICLES.TRAIL_AVOIDANCE_RADIUS;
-          const trailStrength =
-            trailRatio * trailRatio * lifeRemaining * shark.opacity;
-          if (trailStrength <= 0) continue;
-          isAvoiding = true;
-          avoidanceForceX +=
-            (dxTrail / trailDistance) * trailStrength * PARTICLES.TRAIL_AVOIDANCE_FORCE;
-          avoidanceForceY +=
-            (dyTrail / trailDistance) * trailStrength * PARTICLES.TRAIL_AVOIDANCE_FORCE;
-        }
-      }
-
-      particle.isAvoiding = isAvoiding;
-
-      if (!isAvoiding) {
-        const schoolAngle =
-          this.globalSchoolAngle + (particleIndex / this.particleCount) * Math.PI * 2;
-        const schoolTargetX =
-          schoolCenterX + Math.cos(schoolAngle) * particle.schoolRadius;
-        const schoolTargetY =
-          schoolCenterY + Math.sin(schoolAngle) * particle.schoolRadius * 0.6;
-
-        particle.vx += (schoolTargetX - particle.x) * PARTICLES.SCHOOL_FORCE_FACTOR;
-        particle.vy += (schoolTargetY - particle.y) * PARTICLES.SCHOOL_FORCE_FACTOR;
-
-        const wanderAngle =
-          Math.sin(noiseTime + particle.noiseSeed) *
-            Math.cos(particle.x * PARTICLES.WANDER_NOISE_SCALE + particle.noiseSeed) *
-            Math.PI;
-        particle.vx += Math.cos(wanderAngle) * PARTICLES.WANDER_NOISE_FACTOR;
-        particle.vy += Math.sin(wanderAngle) * PARTICLES.WANDER_NOISE_FACTOR;
-      }
-
-      particle.vx += avoidanceForceX * PARTICLES.AVOIDANCE_FACTOR;
-      particle.vy += avoidanceForceY * PARTICLES.AVOIDANCE_FACTOR;
-
-      particle.vx *= PARTICLES.DAMPING;
-      particle.vy *= PARTICLES.DAMPING;
-
-      const speedSq = particle.vx * particle.vx + particle.vy * particle.vy;
-      if (speedSq > maxSpeedSq) {
-        const speedScale = PARTICLES.MAX_SPEED / Math.sqrt(speedSq);
-        particle.vx *= speedScale;
-        particle.vy *= speedScale;
-      }
-
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-
-      if (particle.x < 0) particle.x = this.canvasWidth;
-      else if (particle.x > this.canvasWidth) particle.x = 0;
-      if (particle.y < 0) particle.y = this.canvasHeight;
-      else if (particle.y > this.canvasHeight) particle.y = 0;
-
-      if (isAvoiding) {
-        particle.opacity = Math.min(
-          1,
-          particle.opacity + PARTICLES.OPACITY_FADE_RATE_IN
-        );
-      } else {
-        particle.opacity = Math.max(
-          PARTICLES.MIN_OPACITY_IDLE,
-          particle.opacity - PARTICLES.OPACITY_FADE_RATE_OUT
+      const trail = shark.trail;
+      for (let t = 0; t < trail.length; t++) {
+        const sample = trail[t];
+        const life = 1 - sample.age / TRAIL_AGE_NORMALIZER;
+        if (life <= 0) continue;
+        this.applyAvoidanceFromPoint(
+          sample.x,
+          sample.y,
+          trailRadius,
+          trailRadiusSq,
+          trailSpan,
+          trailForce * sharkOpacity * life
         );
       }
     }
 
-    this.applyAlignment();
-  }
-
-  applyAlignment() {
+    // --- Boid + containment + integration ---
+    const cohesionRadiusSq =
+      PARTICLES.COHESION_RADIUS * PARTICLES.COHESION_RADIUS;
+    const separationRadius = PARTICLES.SEPARATION_RADIUS;
+    const separationRadiusSq = separationRadius * separationRadius;
     const alignmentRadiusSq =
       PARTICLES.ALIGNMENT_RADIUS * PARTICLES.ALIGNMENT_RADIUS;
+    const neighborSpan = Math.ceil(
+      Math.max(
+        PARTICLES.COHESION_RADIUS,
+        PARTICLES.ALIGNMENT_RADIUS,
+        PARTICLES.SEPARATION_RADIUS
+      ) * inv
+    );
 
-    for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
-      const particle = this.particles[particleIndex];
-      if (particle.isAvoiding) continue;
+    const cohesionFactor = PARTICLES.COHESION_FACTOR;
+    const separationFactor = PARTICLES.SEPARATION_FACTOR;
+    const alignmentFactor = PARTICLES.ALIGNMENT_FACTOR;
+    const containmentFactor = PARTICLES.CONTAINMENT_FACTOR;
+    const softBand = PARTICLES.CONTAINMENT_SOFT_BAND;
+    const compressionFactor = PARTICLES.COMPRESSION_FACTOR;
+    const compressionDeadzoneSq = Math.pow(
+      ((rx + ry) / 2) * PARTICLES.COMPRESSION_INNER_DEADZONE,
+      2
+    );
+    const wanderFactor = PARTICLES.WANDER_NOISE_FACTOR;
+    const wanderScale = PARTICLES.WANDER_NOISE_SCALE;
+    const damping = PARTICLES.DAMPING;
+    const maxSpeed = PARTICLES.MAX_SPEED;
+    const maxSpeedSq = maxSpeed * maxSpeed;
+    const minIdleOpacity = PARTICLES.MIN_OPACITY_IDLE;
+    const fadeIn = PARTICLES.OPACITY_FADE_RATE_IN;
+    const fadeOut = PARTICLES.OPACITY_FADE_RATE_OUT;
+    const noiseTime = phase * 0.6;
 
-      let neighborSumVx = 0;
-      let neighborSumVy = 0;
-      let neighborCount = 0;
+    for (let i = 0; i < particleCount; i++) {
+      const p = particles[i];
 
-      const neighborWindow = 8;
-      const start = Math.max(0, particleIndex - neighborWindow);
-      const end = Math.min(this.particles.length, particleIndex + neighborWindow);
+      // Boid neighbour walk over a (2*span+1)² grid window.
+      //
+      // Void-filling cohesion: sum unit vectors *away from* each neighbour.
+      // Isotropic neighbourhoods (well-mixed bulk) sum to ~0 → no force.
+      // Anisotropic neighbourhoods (next to a void) sum into a vector pointing
+      // toward the void → fish slide in and fill it. This is what stops the
+      // school from collapsing into a ring around the shark's wake.
+      let voidX = 0;
+      let voidY = 0;
+      let cohCount = 0;
+      let sepX = 0;
+      let sepY = 0;
+      let aliVx = 0;
+      let aliVy = 0;
+      let aliCount = 0;
 
-      for (let neighborIndex = start; neighborIndex < end; neighborIndex++) {
-        if (neighborIndex === particleIndex) continue;
-        const neighbor = this.particles[neighborIndex];
-        const dx = neighbor.x - particle.x;
-        const dy = neighbor.y - particle.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < alignmentRadiusSq) {
-          neighborSumVx += neighbor.vx;
-          neighborSumVy += neighbor.vy;
-          neighborCount += 1;
+      const gx = Math.floor(p.x * inv);
+      const gy = Math.floor(p.y * inv);
+
+      for (let dx = -neighborSpan; dx <= neighborSpan; dx++) {
+        for (let dy = -neighborSpan; dy <= neighborSpan; dy++) {
+          const cell = this.grid.get(this.packCell(gx + dx, gy + dy));
+          if (!cell) continue;
+          for (let k = 0; k < cell.length; k++) {
+            const j = cell[k];
+            if (j === i) continue;
+            const q = particles[j];
+            const ddx = q.x - p.x;
+            const ddy = q.y - p.y;
+            const dSq = ddx * ddx + ddy * ddy;
+
+            if (dSq < cohesionRadiusSq && dSq > 0.0001) {
+              const d = Math.sqrt(dSq);
+              voidX -= ddx / d;
+              voidY -= ddy / d;
+              cohCount += 1;
+            }
+            if (dSq < alignmentRadiusSq) {
+              aliVx += q.vx;
+              aliVy += q.vy;
+              aliCount += 1;
+            }
+            if (dSq < separationRadiusSq && dSq > 0.0001) {
+              const d = Math.sqrt(dSq);
+              const push = separationRadius - d;
+              sepX -= (ddx / d) * push;
+              sepY -= (ddy / d) * push;
+            }
+          }
         }
       }
 
-      if (neighborCount > 0) {
-        const averageVx = neighborSumVx / neighborCount;
-        const averageVy = neighborSumVy / neighborCount;
-        particle.vx += (averageVx - particle.vx) * PARTICLES.ALIGNMENT_FACTOR;
-        particle.vy += (averageVy - particle.vy) * PARTICLES.ALIGNMENT_FACTOR;
+      if (cohCount > 0) {
+        p.fx += (voidX / cohCount) * cohesionFactor;
+        p.fy += (voidY / cohCount) * cohesionFactor;
+      }
+      if (aliCount > 0) {
+        p.fx += (aliVx / aliCount - p.vx) * alignmentFactor;
+        p.fy += (aliVy / aliCount - p.vy) * alignmentFactor;
+      }
+      p.fx += sepX * separationFactor;
+      p.fy += sepY * separationFactor;
+
+      // Compression: gentle pull toward school center outside a deadzone.
+      // Refills the interior after a shark passes AND prevents any stray
+      // sub-flock from leaving the central region. Inside the deadzone the
+      // pull is zero — fish are free to swirl without being pinned.
+      const cdx = p.x - schoolCx;
+      const cdy = p.y - schoolCy;
+      const cDistSq = cdx * cdx + cdy * cdy;
+      if (cDistSq > compressionDeadzoneSq) {
+        p.fx -= cdx * compressionFactor;
+        p.fy -= cdy * compressionFactor;
+      }
+
+      // Soft containment to the deforming school boundary
+      if (cDistSq > 1) {
+        const cDist = Math.sqrt(cDistSq);
+        const theta = Math.atan2(cdy, cdx);
+        const boundary = this.shapeBoundary(theta, rx, ry, phase);
+        const overshoot = cDist - (boundary - softBand);
+        if (overshoot > 0) {
+          let mag;
+          if (overshoot < softBand) {
+            const t = overshoot / softBand;
+            mag = t * t * softBand;
+          } else {
+            const past = overshoot - softBand;
+            mag = softBand + past * 1.5 + past * past * 0.05;
+          }
+          const force = mag * containmentFactor;
+          p.fx -= (cdx / cDist) * force;
+          p.fy -= (cdy / cDist) * force;
+        }
+      }
+
+      // Wander — low-freq noise so motion never freezes
+      const wanderAngle =
+        Math.sin(noiseTime + p.noiseSeed) *
+        Math.cos(p.x * wanderScale + p.noiseSeed) *
+        Math.PI;
+      p.fx += Math.cos(wanderAngle) * wanderFactor;
+      p.fy += Math.sin(wanderAngle) * wanderFactor;
+
+      // Integrate
+      let vx = (p.vx + p.fx) * damping;
+      let vy = (p.vy + p.fy) * damping;
+
+      const speedSq = vx * vx + vy * vy;
+      if (speedSq > maxSpeedSq) {
+        const scale = maxSpeed / Math.sqrt(speedSq);
+        vx *= scale;
+        vy *= scale;
+      }
+
+      p.vx = vx;
+      p.vy = vy;
+      p.x += vx;
+      p.y += vy;
+
+      // Edge wrap as a safety net — containment normally keeps fish in.
+      if (p.x < 0) p.x = this.canvasWidth;
+      else if (p.x > this.canvasWidth) p.x = 0;
+      if (p.y < 0) p.y = this.canvasHeight;
+      else if (p.y > this.canvasHeight) p.y = 0;
+
+      if (p.isAvoiding) {
+        if (p.opacity < 1) p.opacity = Math.min(1, p.opacity + fadeIn);
+      } else if (p.opacity > minIdleOpacity) {
+        p.opacity = Math.max(minIdleOpacity, p.opacity - fadeOut);
       }
     }
   }
 
+  // Iterate the grid window around (sx, sy) and apply a repulsive force on
+  // each particle inside `radius`. Force ramps quadratically with closeness
+  // and is multiplied by the caller-provided `forceScale` (sharkOpacity × life).
+  applyAvoidanceFromPoint(sx, sy, radius, radiusSq, span, forceScale) {
+    if (forceScale <= 0) return;
+    const inv = this.cellSizeInv;
+    const gx = Math.floor(sx * inv);
+    const gy = Math.floor(sy * inv);
+    const particles = this.particles;
+
+    for (let dx = -span; dx <= span; dx++) {
+      for (let dy = -span; dy <= span; dy++) {
+        const cell = this.grid.get(this.packCell(gx + dx, gy + dy));
+        if (!cell) continue;
+        for (let k = 0; k < cell.length; k++) {
+          const idx = cell[k];
+          const p = particles[idx];
+          const ddx = p.x - sx;
+          const ddy = p.y - sy;
+          const dSq = ddx * ddx + ddy * ddy;
+          if (dSq >= radiusSq || dSq < 0.0001) continue;
+          const d = Math.sqrt(dSq);
+          const ratio = (radius - d) / radius;
+          const strength = ratio * ratio * forceScale;
+          p.fx += (ddx / d) * strength;
+          p.fy += (ddy / d) * strength;
+          p.isAvoiding = true;
+        }
+      }
+    }
+  }
+
+  // Manual rotation in JS avoids per-particle ctx.save/restore + transform
+  // stack pushes which dominate draw cost at ~1000 particles × 60fps.
   draw(ctx, scaleFactor) {
     ctx.strokeStyle = PARTICLES.STROKE_STYLE;
     ctx.lineWidth = PARTICLES.STROKE_WIDTH;
 
-    for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
-      const particle = this.particles[particleIndex];
+    const particles = this.particles;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      ctx.globalAlpha = p.opacity;
 
-      ctx.save();
-      ctx.globalAlpha = particle.opacity;
-      ctx.translate(particle.x, particle.y);
-      ctx.scale(scaleFactor, scaleFactor);
+      const heading = Math.atan2(p.vy, p.vx);
+      const cosH = Math.cos(heading);
+      const sinH = Math.sin(heading);
+      const s = p.size * scaleFactor;
+      const halfBack = -s * 0.5;
+      const finBack = -s;
+      const bodyHalfWidth = s * 0.3;
+      const finHalfWidth = s * 0.2;
 
-      const heading = Math.atan2(particle.vy, particle.vx);
-      ctx.rotate(heading);
+      // Body triangle (head forward, base across)
+      const bx0 = p.x + cosH * s;
+      const by0 = p.y + sinH * s;
+      const bx1 = p.x + cosH * halfBack + sinH * bodyHalfWidth;
+      const by1 = p.y + sinH * halfBack - cosH * bodyHalfWidth;
+      const bx2 = p.x + cosH * halfBack - sinH * bodyHalfWidth;
+      const by2 = p.y + sinH * halfBack + cosH * bodyHalfWidth;
+
+      // Tail fin behind the body
+      const tx0 = p.x + cosH * halfBack;
+      const ty0 = p.y + sinH * halfBack;
+      const tx1 = p.x + cosH * finBack + sinH * finHalfWidth;
+      const ty1 = p.y + sinH * finBack - cosH * finHalfWidth;
+      const tx2 = p.x + cosH * finBack - sinH * finHalfWidth;
+      const ty2 = p.y + sinH * finBack + cosH * finHalfWidth;
 
       ctx.beginPath();
-      ctx.moveTo(particle.size, 0);
-      ctx.lineTo(-particle.size * 0.5, -particle.size * 0.3);
-      ctx.lineTo(-particle.size * 0.5, particle.size * 0.3);
+      ctx.moveTo(bx0, by0);
+      ctx.lineTo(bx1, by1);
+      ctx.lineTo(bx2, by2);
+      ctx.closePath();
+      ctx.moveTo(tx0, ty0);
+      ctx.lineTo(tx1, ty1);
+      ctx.lineTo(tx2, ty2);
       ctx.closePath();
       ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(-particle.size * 0.5, 0);
-      ctx.lineTo(-particle.size, -particle.size * 0.2);
-      ctx.lineTo(-particle.size, particle.size * 0.2);
-      ctx.closePath();
-      ctx.stroke();
-
-      ctx.restore();
     }
+
+    ctx.globalAlpha = 1;
   }
 }
