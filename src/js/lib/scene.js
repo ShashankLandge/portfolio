@@ -16,6 +16,8 @@ export class Scene {
     this.particleSystem = new ParticleSystem(width, height);
     this.animationFrameId = null;
     this.particlesEnabled = true;
+    this.lastFrameTime = performance.now();
+    this.fps = 60;
 
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
@@ -176,6 +178,12 @@ export class Scene {
   }
 
   tick() {
+    // FPS — exponential moving average so the number reads steady, not jittery
+    const now = performance.now();
+    const delta = now - this.lastFrameTime;
+    this.lastFrameTime = now;
+    if (delta > 0) this.fps += (1000 / delta - this.fps) * 0.12;
+
     this.ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
 
     for (const shark of this.sharks) {
@@ -200,6 +208,20 @@ export class Scene {
       shark.draw(this.ctx, this.scaleFactor);
     }
 
+    this._drawFPS();
+
     this.animationFrameId = requestAnimationFrame(this.tick);
+  }
+
+  _drawFPS() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.font = "11px 'NType82Mono', 'JetBrains_Mono', monospace";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText(`${Math.round(this.fps)} FPS`, this.cssWidth - 16, 16);
+    ctx.restore();
   }
 }
