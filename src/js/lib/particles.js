@@ -410,14 +410,12 @@ export class ParticleSystem {
       const p = particles[i];
       ctx.globalAlpha = p.opacity;
 
-      // Subtle fear hue: white → warm coral-red as fearTint ramps up.
-      // Interpolation: keep R=255, drop G (255→160) and B (255→155).
-      // At fearTint=1 the fish reads as a muted salmon-red — visible but
-      // never garish against the dark background.
+      // Fear hue: white → vivid red as fearTint ramps up.
+      // R stays 255; G drops 255→45, B drops 255→35 for a striking signal red.
       if (p.fearTint > 0.004) {
         const t = p.fearTint;
-        const g = (255 - 95 * t) | 0;
-        const b = (255 - 100 * t) | 0;
+        const g = (255 - 210 * t) | 0;
+        const b = (255 - 220 * t) | 0;
         ctx.strokeStyle = `rgba(255,${g},${b},0.92)`;
       } else {
         ctx.strokeStyle = PARTICLES.STROKE_STYLE;
