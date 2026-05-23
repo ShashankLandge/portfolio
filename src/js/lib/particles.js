@@ -60,6 +60,7 @@ export class ParticleSystem {
         opacity: Math.random() * 0.2 + 0.78,
         noiseSeed: i * 13.37 + Math.random() * 100,
         isAvoiding: false,
+        fearTint: 0,  // 0 = white, 1 = full warm-red shift
       });
     }
   }
@@ -355,8 +356,14 @@ export class ParticleSystem {
 
       if (p.isAvoiding) {
         if (p.opacity < 1) p.opacity = Math.min(1, p.opacity + fadeIn);
-      } else if (p.opacity > minIdleOpacity) {
-        p.opacity = Math.max(minIdleOpacity, p.opacity - fadeOut);
+        p.fearTint = Math.min(1, p.fearTint + PARTICLES.FEAR_TINT_RATE_IN);
+      } else {
+        if (p.opacity > minIdleOpacity) {
+          p.opacity = Math.max(minIdleOpacity, p.opacity - fadeOut);
+        }
+        if (p.fearTint > 0) {
+          p.fearTint = Math.max(0, p.fearTint - PARTICLES.FEAR_TINT_RATE_OUT);
+        }
       }
     }
   }
@@ -396,13 +403,25 @@ export class ParticleSystem {
   // Manual rotation in JS avoids per-particle ctx.save/restore + transform
   // stack pushes which dominate draw cost at ~1000 particles × 60fps.
   draw(ctx, scaleFactor) {
-    ctx.strokeStyle = PARTICLES.STROKE_STYLE;
     ctx.lineWidth = PARTICLES.STROKE_WIDTH;
 
     const particles = this.particles;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       ctx.globalAlpha = p.opacity;
+
+      // Subtle fear hue: white → warm coral-red as fearTint ramps up.
+      // Interpolation: keep R=255, drop G (255→160) and B (255→155).
+      // At fearTint=1 the fish reads as a muted salmon-red — visible but
+      // never garish against the dark background.
+      if (p.fearTint > 0.004) {
+        const t = p.fearTint;
+        const g = (255 - 95 * t) | 0;
+        const b = (255 - 100 * t) | 0;
+        ctx.strokeStyle = `rgba(255,${g},${b},0.92)`;
+      } else {
+        ctx.strokeStyle = PARTICLES.STROKE_STYLE;
+      }
 
       const heading = Math.atan2(p.vy, p.vx);
       const cosH = Math.cos(heading);

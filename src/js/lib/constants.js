@@ -105,6 +105,10 @@ export const PARTICLES = Object.freeze({
   OPACITY_FADE_RATE_IN: 0.025,
   OPACITY_FADE_RATE_OUT: 0.01,
 
+  // Fear tint: fish near the shark shift subtly toward warm red
+  FEAR_TINT_RATE_IN: 0.055,   // ramps up quickly when entering danger zone
+  FEAR_TINT_RATE_OUT: 0.018,  // decays slowly — colour lingers a beat after escaping
+
   // Render
   STROKE_STYLE: "rgba(255, 255, 255, 0.92)",
   STROKE_WIDTH: 0.85,
