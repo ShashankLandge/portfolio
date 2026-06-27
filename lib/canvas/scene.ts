@@ -7,6 +7,7 @@ import type { SharkTypeName } from "./constants";
 type ScareColor = "red" | "green" | "blue";
 
 const FPS_EMA_ALPHA = 0.12;
+const FPS_DISPLAY_HYSTERESIS = 10;        
 const FPS_OVERLAY_FONT = "11px 'NType82Mono', 'JetBrains_Mono', monospace";
 const FPS_OVERLAY_FILL = "#ffffff";
 const FPS_OVERLAY_ALPHA = 0.85;
@@ -26,6 +27,7 @@ export class Scene {
   particlesEnabled: boolean;
   lastFrameTime: number;
   fps: number;
+  displayedFps: number;
 
   private readonly handlePointerDown: (event: PointerEvent) => void;
   private readonly handlePointerMove: (event: PointerEvent) => void;
@@ -50,6 +52,7 @@ export class Scene {
     this.particlesEnabled = true;
     this.lastFrameTime = performance.now();
     this.fps = 60;
+    this.displayedFps = 60;
 
     this.handlePointerDown = (event: PointerEvent) => {
       this.isDragging = true;
@@ -216,6 +219,12 @@ export class Scene {
     const frameFps = delta > 0 ? 1000 / delta : this.fps;
     if (delta > 0) this.fps += (frameFps - this.fps) * FPS_EMA_ALPHA;
 
+    // Hysteresis for displayed FPS — only update when change exceeds threshold
+    const roundedFps = Math.round(this.fps);
+    if (Math.abs(roundedFps - this.displayedFps) > FPS_DISPLAY_HYSTERESIS) {
+      this.displayedFps = roundedFps;
+    }
+
     this.ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
 
     for (const shark of this.sharks) {
@@ -232,7 +241,7 @@ export class Scene {
     this.sharks = this.sharks.filter((shark) => !shark.isFullyFadedOut());
 
     if (this.particlesEnabled) {
-      this.particleSystem.adaptToPerformance(this.fps);
+      this.particleSystem.adaptToPerformance(frameFps);
       this.particleSystem.update(this.sharks);
       this.particleSystem.draw(this.ctx, this.scaleFactor);
     }
@@ -255,7 +264,7 @@ export class Scene {
     ctx.textAlign = "right";
     ctx.textBaseline = "top";
     ctx.fillText(
-      `${Math.round(this.fps)} FPS`,
+      `${this.displayedFps} FPS`,
       this.cssWidth - FPS_OVERLAY_MARGIN_PX,
       FPS_OVERLAY_MARGIN_PX
     );

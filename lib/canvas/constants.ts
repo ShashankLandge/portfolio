@@ -113,20 +113,24 @@ export const PARTICLES = {
   // Minimum samples before the first scale decision (~2 s at 60 fps).
   // This prevents startup thrash while the JS JIT is warming up.
   ADAPTIVE_FPS_MIN_SAMPLES: 120,
-  // Frames to wait after any scale change before the next one is allowed
-  // (~7 s at 60 fps). The ring buffer is fully refreshed twice by then.
-  ADAPTIVE_COOLDOWN_FRAMES: 420,
+  // Frames to wait after any scale increase before the next one is allowed
+  // (~4 s at 60 fps). This keeps the system from bouncing upward too quickly.
+  ADAPTIVE_COOLDOWN_FRAMES_UP: 240,
+  // Frames to wait after any scale decrease before the next one is allowed.
+  // Keep this very short so the system can continue lowering load rapidly.
+  ADAPTIVE_COOLDOWN_FRAMES_DOWN: 4,
   // Trimmed-mean thresholds. The gap between them is the deadband where
   // no action is taken; only sustained drift outside it moves the scale.
-  ADAPTIVE_SUSTAINED_LOW: 50,   // below this → reduce scale
-  ADAPTIVE_SUSTAINED_HIGH: 62,  // above this → allow scale increase
+  ADAPTIVE_SUSTAINED_LOW: 58,   // below this → reduce scale
+  ADAPTIVE_SUSTAINED_HIGH: 70,  // above this → allow scale increase
 
   // Per-event step sizes (applied once per cooldown cycle, not per frame).
-  ADAPTIVE_SCALE_STEP_UP: 0.06,
-  ADAPTIVE_SCALE_STEP_DOWN: 0.10,
-  // Particle count changes are applied one particle every few frames so the
-  // school adjusts without any visible pop or sudden density jump.
-  ADAPTIVE_PARTICLE_CHANGE_INTERVAL: 3,
+  ADAPTIVE_SCALE_STEP_UP: 0.10,
+  ADAPTIVE_SCALE_STEP_DOWN: 0.16,
+  ADAPTIVE_SCALE_STEP_DOWN_CRITICAL: 0.5,
+  // Particle count changes are applied one particle per frame so the school
+  // can settle quickly while each removal fades out smoothly.
+  ADAPTIVE_PARTICLE_CHANGE_INTERVAL: 1,
 
   MIN_PARTICLE_SCALE: 0.14,
   MAX_PARTICLE_SCALE: 1,

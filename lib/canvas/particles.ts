@@ -155,12 +155,16 @@ export class ParticleSystem {
         anchorSource?.[Math.floor(Math.random() * anchorSource.length)];
       this.particles.push(this.spawnParticle(anchor));
     } else {
+      const gap = Math.abs(delta);
+      const removeCount = Math.max(
+        1,
+        Math.min(gap, Math.ceil(gap * 0.5))
+      );
       const removable = activeParticles.slice();
-      if (removable.length > 0) {
+      for (let i = 0; i < removeCount && removable.length > 0; i++) {
         const removeIndex = Math.floor(Math.random() * removable.length);
         const particle = removable.splice(removeIndex, 1)[0];
         particle.isRemoving = true;
-        if (particle.opacity > 0.6) particle.opacity = 0.6;
       }
     }
 
@@ -191,18 +195,31 @@ export class ParticleSystem {
 
     if (this.adaptiveCooldownFrames <= 0) {
       if (meanFps < PARTICLES.ADAPTIVE_SUSTAINED_LOW) {
-        this.performanceScale = Math.max(
-          PARTICLES.MIN_PARTICLE_SCALE,
-          this.performanceScale - PARTICLES.ADAPTIVE_SCALE_STEP_DOWN
-        );
-        this.adaptiveCooldownFrames = PARTICLES.ADAPTIVE_COOLDOWN_FRAMES;
+        if (meanFps < 30) {
+          this.performanceScale = Math.max(
+            PARTICLES.MIN_PARTICLE_SCALE,
+            this.performanceScale * 0.5
+          );
+        } else if (meanFps < 45) {
+          this.performanceScale = Math.max(
+            PARTICLES.MIN_PARTICLE_SCALE,
+            this.performanceScale * 0.7
+          );
+        } else {
+          this.performanceScale = Math.max(
+            PARTICLES.MIN_PARTICLE_SCALE,
+            this.performanceScale - PARTICLES.ADAPTIVE_SCALE_STEP_DOWN
+          );
+        }
+        this.adaptiveCooldownFrames =
+          PARTICLES.ADAPTIVE_COOLDOWN_FRAMES_DOWN;
         this.fpsSamples = [];
       } else if (meanFps > PARTICLES.ADAPTIVE_SUSTAINED_HIGH) {
         this.performanceScale = Math.min(
           PARTICLES.MAX_PARTICLE_SCALE,
           this.performanceScale + PARTICLES.ADAPTIVE_SCALE_STEP_UP
         );
-        this.adaptiveCooldownFrames = PARTICLES.ADAPTIVE_COOLDOWN_FRAMES;
+        this.adaptiveCooldownFrames = PARTICLES.ADAPTIVE_COOLDOWN_FRAMES_UP;
         this.fpsSamples = [];
       }
     }
@@ -250,6 +267,7 @@ export class ParticleSystem {
         opacity: Math.random() * 0.2 + 0.78,
         noiseSeed: i * 13.37 + Math.random() * 100,
         isAvoiding: false,
+        isSpawning: false,
         isRemoving: false,
         fearTint: 0,
       });
@@ -306,6 +324,7 @@ export class ParticleSystem {
     const inv = this.cellSizeInv;
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
+      if (p.isRemoving) continue;
       const key = this.packCell(Math.floor(p.x * inv), Math.floor(p.y * inv));
       let cell = this.grid.get(key);
       if (!cell) {
@@ -424,8 +443,8 @@ export class ParticleSystem {
       const p = particles[i];
       if (p.isRemoving) {
         p.opacity = Math.max(0, p.opacity - PARTICLES.PARTICLE_REMOVE_FADE_RATE);
-        p.vx *= 0.92;
-        p.vy *= 0.92;
+        p.vx *= 0.98;
+        p.vy *= 0.98;
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0) p.x = this.canvasWidth;
