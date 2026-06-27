@@ -14,6 +14,8 @@ type Particle = {
   opacity: number;
   noiseSeed: number;
   isAvoiding: boolean;
+  isSpawning: boolean;
+  isRemoving: boolean;
   fearTint: number;
 };
 
@@ -37,6 +39,13 @@ export class ParticleSystem {
   particles: Particle[];
   shapePhase: number;
   particleCount: number;
+  targetParticleCount: number;
+  baseParticleCount: number;
+  performanceScale: number;
+  fpsSamples: number[];
+  adaptiveCooldownFrames: number;
+  particleChangeCooldown: number;
+  fearColor: "red" | "green" | "blue";
 
   constructor(canvasWidth: number, canvasHeight: number) {
     this.canvasWidth = canvasWidth;
@@ -46,10 +55,168 @@ export class ParticleSystem {
     this.grid = new Map();
     this.particles = [];
     this.shapePhase = 0;
-    this.particleCount = isMobileViewport()
+    this.baseParticleCount = isMobileViewport()
       ? PARTICLES.COUNT_MOBILE
       : PARTICLES.COUNT_DESKTOP;
+    this.particleCount = this.baseParticleCount;
+    this.targetParticleCount = this.baseParticleCount;
+    this.performanceScale = PARTICLES.MAX_PARTICLE_SCALE;
+    this.fpsSamples = [];
+    this.adaptiveCooldownFrames = 0;
+    this.particleChangeCooldown = 0;
+    this.fearColor = "red";
     this.init();
+  }
+
+  setFearColor(color: "red" | "green" | "blue"): void {
+    this.fearColor = color;
+  }
+
+  spawnParticle(anchor?: Particle): Particle {
+    const cx = this.canvasWidth / 2;
+    const cy = this.canvasHeight / 2;
+    const { rx, ry } = this.computeSchoolRadii();
+
+    const initialSpeed = 0.3 + Math.random() * 0.3;
+    const initialAngle = Math.random() * Math.PI * 2;
+    let x: number;
+    let y: number;
+    let vx: number;
+    let vy: number;
+
+    if (anchor) {
+      const offsetAngle = Math.random() * Math.PI * 2;
+      const offsetRadius = Math.random() * 24 + 6;
+      x = anchor.x + Math.cos(offsetAngle) * offsetRadius;
+      y = anchor.y + Math.sin(offsetAngle) * offsetRadius;
+      vx = anchor.vx + (Math.random() - 0.5) * 0.4;
+      vy = anchor.vy + (Math.random() - 0.5) * 0.4;
+      if (vx === 0 && vy === 0) {
+        vx = Math.cos(initialAngle) * initialSpeed;
+        vy = Math.sin(initialAngle) * initialSpeed;
+      }
+    } else {
+      let dx: number;
+      let dy: number;
+      do {
+        dx = (Math.random() * 2 - 1) * rx;
+        dy = (Math.random() * 2 - 1) * ry;
+      } while ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 1);
+
+      x = cx + dx;
+      y = cy + dy;
+      vx = Math.cos(initialAngle) * initialSpeed;
+      vy = Math.sin(initialAngle) * initialSpeed;
+    }
+
+    x = Math.max(0, Math.min(this.canvasWidth, x));
+    y = Math.max(0, Math.min(this.canvasHeight, y));
+
+    const seed = this.particles.length * 13.37 + Math.random() * 100;
+    return {
+      x,
+      y,
+      vx,
+      vy,
+      fx: 0,
+      fy: 0,
+      size: Math.random() * 1.0 + 0.55,
+      opacity: 0,
+      noiseSeed: seed,
+      isAvoiding: false,
+      isSpawning: true,
+      isRemoving: false,
+      fearTint: 0,
+    };
+  }
+
+  adjustParticleCount(desiredCount: number): void {
+    this.targetParticleCount = desiredCount;
+
+    const activeParticles = this.particles.filter((p) => !p.isRemoving);
+    const activeCount = activeParticles.length;
+    if (activeCount === desiredCount) {
+      this.particleCount = this.particles.length;
+      return;
+    }
+
+    if (this.particleChangeCooldown > 0) {
+      this.particleChangeCooldown -= 1;
+      return;
+    }
+
+    const delta = desiredCount - activeCount;
+    const step = Math.sign(delta);
+    this.particleChangeCooldown = PARTICLES.ADAPTIVE_PARTICLE_CHANGE_INTERVAL;
+
+    if (step > 0) {
+      const anchorSource = activeCount > 0 ? activeParticles : undefined;
+      const anchor =
+        anchorSource?.[Math.floor(Math.random() * anchorSource.length)];
+      this.particles.push(this.spawnParticle(anchor));
+    } else {
+      const removable = activeParticles.slice();
+      if (removable.length > 0) {
+        const removeIndex = Math.floor(Math.random() * removable.length);
+        const particle = removable.splice(removeIndex, 1)[0];
+        particle.isRemoving = true;
+        if (particle.opacity > 0.6) particle.opacity = 0.6;
+      }
+    }
+
+    this.particleCount = this.particles.length;
+  }
+
+  adaptToPerformance(fps: number): void {
+    if (fps <= 0) return;
+
+    this.fpsSamples.push(fps);
+    if (this.fpsSamples.length > PARTICLES.ADAPTIVE_FPS_RING_SIZE) {
+      this.fpsSamples.shift();
+    }
+
+    if (this.adaptiveCooldownFrames > 0) {
+      this.adaptiveCooldownFrames -= 1;
+    }
+
+    if (this.fpsSamples.length < PARTICLES.ADAPTIVE_FPS_MIN_SAMPLES) {
+      return;
+    }
+
+    const sorted = [...this.fpsSamples].sort((a, b) => a - b);
+    const trim = Math.floor(sorted.length * 0.15);
+    const trimmed = sorted.slice(trim, sorted.length - trim);
+    const meanFps =
+      trimmed.reduce((sum, sample) => sum + sample, 0) / trimmed.length;
+
+    if (this.adaptiveCooldownFrames <= 0) {
+      if (meanFps < PARTICLES.ADAPTIVE_SUSTAINED_LOW) {
+        this.performanceScale = Math.max(
+          PARTICLES.MIN_PARTICLE_SCALE,
+          this.performanceScale - PARTICLES.ADAPTIVE_SCALE_STEP_DOWN
+        );
+        this.adaptiveCooldownFrames = PARTICLES.ADAPTIVE_COOLDOWN_FRAMES;
+        this.fpsSamples = [];
+      } else if (meanFps > PARTICLES.ADAPTIVE_SUSTAINED_HIGH) {
+        this.performanceScale = Math.min(
+          PARTICLES.MAX_PARTICLE_SCALE,
+          this.performanceScale + PARTICLES.ADAPTIVE_SCALE_STEP_UP
+        );
+        this.adaptiveCooldownFrames = PARTICLES.ADAPTIVE_COOLDOWN_FRAMES;
+        this.fpsSamples = [];
+      }
+    }
+
+    this.performanceScale = Math.min(
+      PARTICLES.MAX_PARTICLE_SCALE,
+      Math.max(PARTICLES.MIN_PARTICLE_SCALE, this.performanceScale)
+    );
+
+    const desiredCount = Math.max(
+      40,
+      Math.round(this.baseParticleCount * this.performanceScale)
+    );
+    this.adjustParticleCount(desiredCount);
   }
 
   init(): void {
@@ -83,6 +250,7 @@ export class ParticleSystem {
         opacity: Math.random() * 0.2 + 0.78,
         noiseSeed: i * 13.37 + Math.random() * 100,
         isAvoiding: false,
+        isRemoving: false,
         fearTint: 0,
       });
     }
@@ -91,13 +259,18 @@ export class ParticleSystem {
   resize(canvasWidth: number, canvasHeight: number): void {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    const desiredCount = isMobileViewport()
+    const nextBaseCount = isMobileViewport()
       ? PARTICLES.COUNT_MOBILE
       : PARTICLES.COUNT_DESKTOP;
-    if (desiredCount !== this.particleCount) {
-      this.particleCount = desiredCount;
-      this.init();
+    if (nextBaseCount !== this.baseParticleCount) {
+      this.baseParticleCount = nextBaseCount;
     }
+
+    const desiredCount = Math.max(
+      40,
+      Math.round(this.baseParticleCount * this.performanceScale)
+    );
+    this.adjustParticleCount(desiredCount);
   }
 
   computeSchoolRadii(): { rx: number; ry: number } {
@@ -249,6 +422,18 @@ export class ParticleSystem {
 
     for (let i = 0; i < particleCount; i++) {
       const p = particles[i];
+      if (p.isRemoving) {
+        p.opacity = Math.max(0, p.opacity - PARTICLES.PARTICLE_REMOVE_FADE_RATE);
+        p.vx *= 0.92;
+        p.vy *= 0.92;
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = this.canvasWidth;
+        else if (p.x > this.canvasWidth) p.x = 0;
+        if (p.y < 0) p.y = this.canvasHeight;
+        else if (p.y > this.canvasHeight) p.y = 0;
+        continue;
+      }
 
       // Boid neighbour walk over a (2*span+1)² grid window.
       //
@@ -377,7 +562,12 @@ export class ParticleSystem {
         if (p.opacity < 1) p.opacity = Math.min(1, p.opacity + fadeIn);
         p.fearTint = Math.min(1, p.fearTint + PARTICLES.FEAR_TINT_RATE_IN);
       } else {
-        if (p.opacity > minIdleOpacity) {
+        if (p.isSpawning) {
+          p.opacity = Math.min(minIdleOpacity, p.opacity + fadeIn * 3);
+          if (p.opacity >= minIdleOpacity) {
+            p.isSpawning = false;
+          }
+        } else if (p.opacity > minIdleOpacity) {
           p.opacity = Math.max(minIdleOpacity, p.opacity - fadeOut);
         }
         if (p.fearTint > 0) {
@@ -385,6 +575,10 @@ export class ParticleSystem {
         }
       }
     }
+
+    this.particles = this.particles.filter(
+      (p) => !p.isRemoving || p.opacity > 0.001
+    );
   }
 
   // Iterate the grid window around (sx, sy) and apply a repulsive force on
@@ -440,9 +634,10 @@ export class ParticleSystem {
       // R stays 255; G drops 255→45, B drops 255→35 for a striking signal red.
       if (p.fearTint > 0.004) {
         const t = p.fearTint;
-        const g = (255 - 210 * t) | 0;
-        const b = (255 - 220 * t) | 0;
-        ctx.strokeStyle = `rgba(255,${g},${b},0.92)`;
+        const r = this.fearColor === "red" ? 255 : (255 - 210 * t) | 0;
+        const g = this.fearColor === "green" ? 255 : (255 - 210 * t) | 0;
+        const b = this.fearColor === "blue" ? 255 : (255 - 220 * t) | 0;
+        ctx.strokeStyle = `rgba(${r},${g},${b},0.92)`;
       } else {
         ctx.strokeStyle = PARTICLES.STROKE_STYLE;
       }

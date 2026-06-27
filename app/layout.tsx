@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Frame } from "@/components/frame";
 import { SceneCanvas } from "@/components/scene-canvas";
 import { ViewsStack } from "@/components/views/views-stack";
+import { SceneColorProvider } from "@/components/scene-color-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,11 +32,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
         />
       </head>
       <body className="bg-black text-white">
-        <SceneCanvas />
-        <Frame>
-          <ViewsStack />
-        </Frame>
-        {children}
+        <SceneColorProvider>
+          <SceneCanvas />
+          <Frame>
+            <ViewsStack />
+          </Frame>
+          {children}
+        </SceneColorProvider>
       </body>
     </html>
   );

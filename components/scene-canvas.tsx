@@ -4,11 +4,14 @@ import { useEffect, useRef } from "react";
 import { CANVAS_ID, SHARK_LAYOUT_BY_ROUTE } from "@/lib/canvas/constants";
 import { Scene } from "@/lib/canvas/scene";
 import { useCurrentRoute } from "@/lib/use-current-route";
+import { useSceneColor } from "./scene-color-context";
+import { ScareColorControls } from "./scare-color-controls";
 
 export function SceneCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<Scene | null>(null);
   const currentRoute = useCurrentRoute();
+  const { color } = useSceneColor();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,12 +33,23 @@ export function SceneCanvas() {
     scene.setSharkTypes(SHARK_LAYOUT_BY_ROUTE[currentRoute]);
   }, [currentRoute]);
 
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    scene.setScareColor(color);
+  }, [color]);
+
   return (
-    <canvas
-      ref={canvasRef}
-      id={CANVAS_ID}
-      className="scene-canvas"
-      aria-hidden="true"
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        id={CANVAS_ID}
+        className="scene-canvas"
+        aria-hidden="true"
+      />
+      <div className="scare-color-overlay">
+        <ScareColorControls />
+      </div>
+    </>
   );
 }

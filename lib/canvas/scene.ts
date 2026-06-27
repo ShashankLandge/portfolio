@@ -1,7 +1,10 @@
 import { calculateScaleFactor, resizeCanvasToWindow } from "./canvas";
 import { MouseState, Shark } from "./shark";
 import { ParticleSystem } from "./particles";
+import { PARTICLES } from "./constants";
 import type { SharkTypeName } from "./constants";
+
+type ScareColor = "red" | "green" | "blue";
 
 const FPS_EMA_ALPHA = 0.12;
 const FPS_OVERLAY_FONT = "11px 'NType82Mono', 'JetBrains_Mono', monospace";
@@ -184,6 +187,10 @@ export class Scene {
     this.particlesEnabled = enabled;
   }
 
+  setScareColor(color: ScareColor): void {
+    this.particleSystem.setFearColor(color);
+  }
+
   start(): void {
     if (this.animationFrameId !== null) return;
     this.tick();
@@ -206,7 +213,8 @@ export class Scene {
     const now = performance.now();
     const delta = now - this.lastFrameTime;
     this.lastFrameTime = now;
-    if (delta > 0) this.fps += (1000 / delta - this.fps) * FPS_EMA_ALPHA;
+    const frameFps = delta > 0 ? 1000 / delta : this.fps;
+    if (delta > 0) this.fps += (frameFps - this.fps) * FPS_EMA_ALPHA;
 
     this.ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
 
@@ -224,6 +232,7 @@ export class Scene {
     this.sharks = this.sharks.filter((shark) => !shark.isFullyFadedOut());
 
     if (this.particlesEnabled) {
+      this.particleSystem.adaptToPerformance(this.fps);
       this.particleSystem.update(this.sharks);
       this.particleSystem.draw(this.ctx, this.scaleFactor);
     }

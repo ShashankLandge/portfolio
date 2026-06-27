@@ -61,8 +61,6 @@ export const PARTICLES = {
   SHAPE_DEFORM_A1: 0.1,
   SHAPE_DEFORM_A2: 0.07,
   SHAPE_DEFORM_A3: 0.04,
-  // School centroid orbits around canvas center — fast enough that the school
-  // visibly drifts but never reaches the screen edges.
   SCHOOL_CENTER_DRIFT_FACTOR: 0.7,
   SCHOOL_CENTER_DRIFT_X: 70,
   SCHOOL_CENTER_DRIFT_Y: 44,
@@ -70,15 +68,9 @@ export const PARTICLES = {
   CONTAINMENT_FACTOR: 0.012,
   CONTAINMENT_SOFT_BAND: 34,
 
-  // Very soft pull toward school center: just enough to keep the school
-  // anchored centrally, but weak enough that sub-flocks can swirl freely
-  // within a large interior deadzone.
   COMPRESSION_FACTOR: 0.0009,
   COMPRESSION_INNER_DEADZONE: 0.4,
 
-  // Boid: void-filling cohesion + LOCAL separation + LOCAL alignment.
-  // High global alignment causes "consensus collapse" — every fish averages to
-  // the global mean heading, killing sub-flock variety. Keep alignment LOCAL.
   COHESION_RADIUS: 30,
   COHESION_FACTOR: 0.028,
   SEPARATION_RADIUS: 16,
@@ -98,8 +90,52 @@ export const PARTICLES = {
   OPACITY_FADE_RATE_IN: 0.025,
   OPACITY_FADE_RATE_OUT: 0.01,
 
-  // Fish near the shark shift toward warm red; slow decay lets colour linger
-  // after escaping.
+  // ── Adaptive performance scaling ─────────────────────────────────────────
+  //
+  // The old approach reacted to the instantaneous FPS EMA every frame, causing
+  // a feedback oscillation: low FPS → remove particles → high FPS → add them
+  // back → low FPS → repeat forever.  The new approach:
+  //
+  //   1. Accumulates a ring buffer of raw FPS samples.
+  //   2. Trims the noisiest 15 % on each tail and averages the rest — a
+  //      sustained trend is required, not a single dip.
+  //   3. Gates every scale change behind a cooldown so the count can settle
+  //      and the buffer can refill with post-change data before the next
+  //      decision.
+  //
+  // ADAPTIVE_FPS_TARGET and ADAPTIVE_FPS_HYSTERESIS are kept for backward
+  // compatibility but are no longer read by the adaptive algorithm.
+  ADAPTIVE_FPS_TARGET: 60,
+  ADAPTIVE_FPS_HYSTERESIS: 3,
+
+  // Ring buffer length in frames (~3 s at 60 fps).
+  ADAPTIVE_FPS_RING_SIZE: 180,
+  // Minimum samples before the first scale decision (~2 s at 60 fps).
+  // This prevents startup thrash while the JS JIT is warming up.
+  ADAPTIVE_FPS_MIN_SAMPLES: 120,
+  // Frames to wait after any scale change before the next one is allowed
+  // (~7 s at 60 fps). The ring buffer is fully refreshed twice by then.
+  ADAPTIVE_COOLDOWN_FRAMES: 420,
+  // Trimmed-mean thresholds. The gap between them is the deadband where
+  // no action is taken; only sustained drift outside it moves the scale.
+  ADAPTIVE_SUSTAINED_LOW: 50,   // below this → reduce scale
+  ADAPTIVE_SUSTAINED_HIGH: 62,  // above this → allow scale increase
+
+  // Per-event step sizes (applied once per cooldown cycle, not per frame).
+  ADAPTIVE_SCALE_STEP_UP: 0.06,
+  ADAPTIVE_SCALE_STEP_DOWN: 0.10,
+  // Particle count changes are applied one particle every few frames so the
+  // school adjusts without any visible pop or sudden density jump.
+  ADAPTIVE_PARTICLE_CHANGE_INTERVAL: 3,
+
+  MIN_PARTICLE_SCALE: 0.14,
+  MAX_PARTICLE_SCALE: 1,
+
+  // Per-frame opacity decrease for particles being gracefully removed.
+  // At 0.035 / frame a particle takes ~25 frames (≈ 0.4 s) to fully fade.
+  PARTICLE_REMOVE_FADE_RATE: 0.035,
+  // ─────────────────────────────────────────────────────────────────────────
+
   FEAR_TINT_RATE_IN: 0.09,
   FEAR_TINT_RATE_OUT: 0.018,
 

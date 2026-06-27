@@ -178,6 +178,47 @@ canvas {
   gap: 0.1rem;
 }
 
+.scare-color-overlay {
+  position: fixed;
+  top: 14px;
+  right: 72px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.scare-color-controls {
+  display: flex;
+  gap: 0.35rem;
+  pointer-events: auto;
+}
+
+.scare-color-button {
+  width: 0.78rem;
+  height: 0.78rem;
+  min-width: 0.78rem;
+  min-height: 0.78rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: currentColor;
+  color: transparent;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--transition-base) var(--easing-default),
+    box-shadow var(--transition-base) var(--easing-default),
+    border-color var(--transition-base) var(--easing-default);
+}
+
+.scare-color-button:hover,
+.scare-color-button:focus-visible {
+  transform: scale(1.12);
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.scare-color-button--active {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
 .menu-link {
   position: relative;
   display: inline-block;
